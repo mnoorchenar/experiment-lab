@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ExperimentLab — {% block title %}{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span class="brand-icon">🧪</span>
+      <div>
+        <div class="brand-name">ExperimentLab</div>
+        <div class="brand-sub">Statistical Experimentation Suite</div>
+      </div>
+    </div>
+
+    <ul class="nav-list">
+      <li>
+        <a href="/power" class="nav-link {% if active == 'power' %}active{% endif %}">
+          <span class="nav-icon">📐</span>
+          <div class="nav-text">
+            <span class="nav-title">Power Calculator</span>
+            <span class="nav-desc">Sample size planning</span>
+          </div>
+        </a>
+      </li>
+      <li>
+        <a href="/ab-test" class="nav-link {% if active == 'ab_test' %}active{% endif %}">
+          <span class="nav-icon">⚖️</span>
+          <div class="nav-text">
+            <span class="nav-title">A/B Test Analyzer</span>
+            <span class="nav-desc">Significance &amp; effect size</span>
+          </div>
+        </a>
+      </li>
+      <li>
+        <a href="/doe" class="nav-link {% if active == 'doe' %}active{% endif %}">
+          <span class="nav-icon">🔬</span>
+          <div class="nav-text">
+            <span class="nav-title">Two-Factor DoE</span>
+            <span class="nav-desc">Factorial experiment analysis</span>
+          </div>
+        </a>
+      </li>
+      <li>
+        <a href="/sequential" class="nav-link {% if active == 'sequential' %}active{% endif %}">
+          <span class="nav-icon">📈</span>
+          <div class="nav-text">
+            <span class="nav-title">Sequential Testing</span>
+            <span class="nav-desc">Peeking problem demo</span>
+          </div>
+        </a>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      Built by <a href="https://mnoorchenar.github.io/" target="_blank" rel="noopener">Mohammad Noorchenarboo</a>
+    </div>
+  </nav>
+
+  <!-- Hamburger toggle for mobile -->
+  <button class="hamburger" id="hamburger" aria-label="Toggle navigation">&#9776;</button>
+
+  <!-- Main content -->
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+
+</div>
+
+<script>
+  // Mobile sidebar toggle
+  const hamburger = document.getElementById('hamburger');
+  const sidebar = document.getElementById('sidebar');
+  hamburger.addEventListener('click', () => {
+    sidebar.classList.toggle('open');
+  });
+
+  // Close sidebar on nav link click (mobile)
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', () => {
+      sidebar.classList.remove('open');
+    });
+  });
+
+  // Plotly helper
+  function renderChart(divId, chartJson) {
+    const parsed = JSON.parse(chartJson);
+    Plotly.newPlot(divId, parsed.data, parsed.layout, { responsive: true });
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-box');
+    if (el) {
+      el.textContent = 'Error: ' + msg;
+      el.style.display = 'block';
+    }
+  }
+
+  function hideError() {
+    const el = document.getElementById('error-box');
+    if (el) el.style.display = 'none';
+  }
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

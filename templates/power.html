@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Power Calculator{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>📐 Sample Size &amp; Power Calculator</h1>
+  <p class="page-desc">
+    <strong>When would you use this?</strong> Before you launch any experiment — A/B test, clinical trial,
+    quality check — you need to know how many observations to collect. Too few and you will miss real effects;
+    too many and you waste time and resources. This tool answers: <em>"How many users do I need?"</em>
+  </p>
+</div>
+
+<div id="error-box" class="error-box" style="display:none;"></div>
+
+<div class="two-col">
+
+  <!-- Input card -->
+  <div class="card">
+    <h2 class="card-title">Inputs</h2>
+
+    <div class="form-group">
+      <label for="baseline">Baseline rate (current conversion rate)</label>
+      <div class="input-hint">e.g. 0.10 for 10%</div>
+      <input type="number" id="baseline" value="0.10" step="0.01" min="0.001" max="0.999" />
+    </div>
+
+    <div class="form-group">
+      <label for="mde">Minimum detectable effect (absolute)</label>
+      <div class="input-hint">e.g. 0.02 means you want to detect a 2% lift</div>
+      <input type="number" id="mde" value="0.02" step="0.005" min="0.001" />
+    </div>
+
+    <div class="form-group">
+      <label for="alpha">Significance level (α)</label>
+      <div class="input-hint">Probability of a false positive (typically 0.05)</div>
+      <input type="number" id="alpha" value="0.05" step="0.01" min="0.01" max="0.20" />
+    </div>
+
+    <div class="form-group">
+      <label for="power">Desired power (1 − β)</label>
+      <div class="input-hint">Probability of detecting a real effect (typically 0.80)</div>
+      <input type="number" id="power" value="0.80" step="0.05" min="0.50" max="0.99" />
+    </div>
+
+    <div class="form-group">
+      <label>Test type</label>
+      <div class="radio-group">
+        <label class="radio-label">
+          <input type="radio" name="tails" value="2" checked /> Two-tailed
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="tails" value="1" /> One-tailed
+        </label>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="calc-btn" onclick="calculate()">Calculate Sample Size</button>
+  </div>
+
+  <!-- Result summary card -->
+  <div class="card" id="result-card" style="display:none;">
+    <h2 class="card-title">Required Sample Size</h2>
+    <div class="big-number" id="sample-size-display">—</div>
+    <div class="big-number-label">observations per group</div>
+    <div class="stat-row">
+      <span class="stat-item" id="total-display"></span>
+    </div>
+    <div class="interpretation" id="interpretation-text"></div>
+  </div>
+
+</div>
+
+<!-- Charts -->
+<div class="card chart-card" id="chart1-card" style="display:none;">
+  <h2 class="card-title">Power Curve — Effect Size vs Statistical Power</h2>
+  <div id="chart1"></div>
+</div>
+
+<div class="card chart-card" id="chart2-card" style="display:none;">
+  <h2 class="card-title">Sample Size Trade-off — Power vs Required Observations</h2>
+  <div id="chart2"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function calculate() {
+  hideError();
+  const btn = document.getElementById('calc-btn');
+  btn.textContent = 'Calculating…';
+  btn.disabled = true;
+
+  const payload = {
+    baseline: parseFloat(document.getElementById('baseline').value),
+    mde:      parseFloat(document.getElementById('mde').value),
+    alpha:    parseFloat(document.getElementById('alpha').value),
+    power:    parseFloat(document.getElementById('power').value),
+    tails:    parseInt(document.querySelector('input[name="tails"]:checked').value),
+  };
+
+  try {
+    const resp = await fetch('/power/calculate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await resp.json();
+
+    if (result.error) { showError(result.error); return; }
+
+    document.getElementById('sample-size-display').textContent =
+      result.sample_size.toLocaleString();
+    document.getElementById('total-display').innerHTML =
+      `Total (both groups): <strong>${(result.sample_size * 2).toLocaleString()}</strong>`;
+    document.getElementById('interpretation-text').innerHTML = result.interpretation;
+
+    document.getElementById('result-card').style.display = 'block';
+    document.getElementById('chart1-card').style.display = 'block';
+    document.getElementById('chart2-card').style.display = 'block';
+
+    renderChart('chart1', result.chart1);
+    renderChart('chart2', result.chart2);
+  } catch(e) {
+    showError(e.message);
+  } finally {
+    btn.textContent = 'Calculate Sample Size';
+    btn.disabled = false;
+  }
+}
+
+// Auto-calculate on load with defaults
+window.addEventListener('load', calculate);
+</script>
+{% endblock %}

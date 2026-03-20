@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}Two-Factor DoE{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>🔬 Two-Factor Experiment Analyzer (DoE)</h1>
+  <p class="page-desc">
+    <strong>When would you use this?</strong> When you are testing two decisions at the same time — e.g.,
+    email subject line AND send time, or button color AND page layout. Running them together in a factorial
+    design is more efficient than two separate A/B tests and uniquely reveals whether the two factors
+    <em>interact</em> with each other (i.e., whether the best subject line depends on the send time).
+  </p>
+</div>
+
+<div id="error-box" class="error-box" style="display:none;"></div>
+
+<div class="card">
+  <h2 class="card-title">Experiment Setup</h2>
+
+  <div class="two-col-inputs">
+    <div class="form-group">
+      <label for="factor_a">Factor A name</label>
+      <input type="text" id="factor_a" value="Email Subject Line" />
+    </div>
+    <div class="form-group">
+      <label for="factor_b">Factor B name</label>
+      <input type="text" id="factor_b" value="Send Time" />
+    </div>
+  </div>
+
+  <div class="two-col-inputs">
+    <div class="form-group">
+      <label for="levels_a">Levels for Factor A</label>
+      <select id="levels_a" onchange="buildGrid()">
+        <option value="2" selected>2</option>
+        <option value="3">3</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="levels_b">Levels for Factor B</label>
+      <select id="levels_b" onchange="buildGrid()">
+        <option value="2" selected>2</option>
+        <option value="3">3</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label for="response_name">Response variable name</label>
+    <input type="text" id="response_name" value="Click Rate (%)" />
+  </div>
+
+  <div class="form-group">
+    <label>Response grid</label>
+    <div class="input-hint">
+      Enter the observed mean (or comma-separated list of observations) for each factor combination.
+      Rows = levels of Factor A, Columns = levels of Factor B.
+    </div>
+    <div id="grid-container"></div>
+  </div>
+
+  <button class="btn-primary" id="analyze-btn" onclick="analyze()">Analyze Experiment</button>
+</div>
+
+<!-- Results -->
+<div id="results-section" style="display:none;">
+
+  <div class="card">
+    <h2 class="card-title">ANOVA Table</h2>
+    <div class="table-wrapper">
+      <table class="anova-table" id="anova-table">
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th>SS</th>
+            <th>df</th>
+            <th>MS</th>
+            <th>F</th>
+            <th>p-value</th>
+            <th>Significant?</th>
+          </tr>
+        </thead>
+        <tbody id="anova-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card chart-card">
+    <h2 class="card-title">Interaction Plot</h2>
+    <div id="chart-interaction"></div>
+  </div>
+
+  <div class="card chart-card">
+    <h2 class="card-title">Main Effects — Factor A</h2>
+    <div id="chart-main"></div>
+  </div>
+
+  <div class="card">
+    <h2 class="card-title">Interpretation</h2>
+    <div class="interpretation" id="interp-text"></div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Default 2×2 data showing a clear interaction
+const DEFAULT_GRID = [
+  ['12.3', '18.7'],
+  ['21.4', '15.2'],
+];
+
+function buildGrid() {
+  const la = parseInt(document.getElementById('levels_a').value);
+  const lb = parseInt(document.getElementById('levels_b').value);
+  const fa = document.getElementById('factor_a').value || 'Factor A';
+  const fb = document.getElementById('factor_b').value || 'Factor B';
+  const container = document.getElementById('grid-container');
+
+  let html = '<table class="input-grid"><thead><tr><th></th>';
+  for (let j = 0; j < lb; j++) {
+    html += `<th>${fb} L${j+1}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+
+  for (let i = 0; i < la; i++) {
+    html += `<tr><td class="row-label">${fa} L${i+1}</td>`;
+    for (let j = 0; j < lb; j++) {
+      const def = (DEFAULT_GRID[i] && DEFAULT_GRID[i][j]) ? DEFAULT_GRID[i][j] : '0';
+      html += `<td><input type="text" class="grid-cell" id="cell_${i}_${j}" value="${def}" placeholder="value(s)" /></td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function getGridData() {
+  const la = parseInt(document.getElementById('levels_a').value);
+  const lb = parseInt(document.getElementById('levels_b').value);
+  const grid = [];
+  for (let i = 0; i < la; i++) {
+    const row = [];
+    for (let j = 0; j < lb; j++) {
+      const raw = document.getElementById(`cell_${i}_${j}`).value.trim();
+      const parts = raw.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+      if (parts.length === 1) row.push(parts[0]);
+      else if (parts.length > 1) row.push(parts);
+      else row.push(0);
+    }
+    grid.push(row);
+  }
+  return grid;
+}
+
+async function analyze() {
+  hideError();
+  const btn = document.getElementById('analyze-btn');
+  btn.textContent = 'Analyzing…';
+  btn.disabled = true;
+
+  const payload = {
+    factor_a: document.getElementById('factor_a').value || 'Factor A',
+    factor_b: document.getElementById('factor_b').value || 'Factor B',
+    levels_a: parseInt(document.getElementById('levels_a').value),
+    levels_b: parseInt(document.getElementById('levels_b').value),
+    response_name: document.getElementById('response_name').value || 'Response',
+    response_grid: getGridData(),
+  };
+
+  try {
+    const resp = await fetch('/doe/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const r = await resp.json();
+    if (r.error) { showError(r.error); return; }
+
+    // Populate ANOVA table
+    const tbody = document.getElementById('anova-body');
+    tbody.innerHTML = '';
+    r.anova_table.forEach(row => {
+      const tr = document.createElement('tr');
+      if (row.source === 'Total') tr.classList.add('total-row');
+      tr.innerHTML = `
+        <td><strong>${row.source}</strong></td>
+        <td>${row.ss}</td>
+        <td>${row.df}</td>
+        <td>${row.ms}</td>
+        <td>${row.f}</td>
+        <td class="${row.sig ? 'sig-yes' : ''}">${row.p}</td>
+        <td>${row.p ? (row.sig ? '<span class="badge badge-pass">Yes ✓</span>' : '<span class="badge badge-fail">No</span>') : ''}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('interp-text').innerHTML = r.interpretation;
+    document.getElementById('results-section').style.display = 'block';
+    renderChart('chart-interaction', r.chart_interaction);
+    renderChart('chart-main', r.chart_main);
+  } catch(e) {
+    showError(e.message);
+  } finally {
+    btn.textContent = 'Analyze Experiment';
+    btn.disabled = false;
+  }
+}
+
+// Build grid on load and run default analysis
+window.addEventListener('load', () => {
+  buildGrid();
+  analyze();
+});
+
+// Rebuild grid when factor names change (for labels)
+['factor_a', 'factor_b'].forEach(id => {
+  document.getElementById(id).addEventListener('change', buildGrid);
+});
+</script>
+{% endblock %}
