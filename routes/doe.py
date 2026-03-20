@@ -8,6 +8,15 @@ from scipy import stats
 
 doe_bp = Blueprint("doe", __name__)
 
+_FONT = dict(family="Inter, system-ui, sans-serif", size=12, color="#374151")
+_AXIS = dict(gridcolor="#f0f2f8", linecolor="#e5e7eb", tickfont=dict(size=11, color="#6b7280"), zeroline=False)
+_TITLE_FONT = dict(size=14, color="#111827", family="Inter, system-ui, sans-serif")
+_LEGEND = dict(bgcolor="rgba(255,255,255,0.9)", bordercolor="#e5e7eb", borderwidth=1, font=dict(size=11))
+_MARGIN = dict(t=52, b=48, l=64, r=28)
+
+# Rich, distinct palette
+_COLORS = ["#6366f1", "#f43f5e", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4"]
+
 
 @doe_bp.route("/doe")
 def doe_page():
@@ -25,8 +34,7 @@ def analyze():
         response_name = data.get("response_name", "Response")
         response_grid = data.get("response_grid", [])
 
-        # Build observations list from grid
-        observations = []  # (a_idx, b_idx, value)
+        observations = []
         for i in range(levels_a):
             for j in range(levels_b):
                 cell = response_grid[i][j]
@@ -43,10 +51,8 @@ def analyze():
         b_idx = np.array([o[1] for o in observations])
         y = np.array([o[2] for o in observations])
         n_total = len(y)
-
         grand_mean = float(np.mean(y))
 
-        # Cell means
         cell_means = np.zeros((levels_a, levels_b))
         cell_counts = np.zeros((levels_a, levels_b), dtype=int)
         for i in range(levels_a):
@@ -58,11 +64,8 @@ def analyze():
 
         a_means = cell_means.mean(axis=1)
         b_means = cell_means.mean(axis=0)
-
-        # SS Total
         ss_total = float(np.sum((y - grand_mean) ** 2))
 
-        # SS within cells (error)
         ss_error = 0.0
         for i in range(levels_a):
             for j in range(levels_b):
@@ -70,42 +73,19 @@ def analyze():
                 if mask.sum() > 1:
                     ss_error += float(np.sum((y[mask] - cell_means[i, j]) ** 2))
 
-        # SS_A
-        ss_a = float(
-            sum(
-                int(cell_counts[i, :].sum()) * (a_means[i] - grand_mean) ** 2
-                for i in range(levels_a)
-            )
-        )
-
-        # SS_B
-        ss_b = float(
-            sum(
-                int(cell_counts[:, j].sum()) * (b_means[j] - grand_mean) ** 2
-                for j in range(levels_b)
-            )
-        )
-
-        # SS_Cells
-        ss_cells = float(
-            sum(
-                cell_counts[i, j] * (cell_means[i, j] - grand_mean) ** 2
-                for i in range(levels_a)
-                for j in range(levels_b)
-            )
-        )
-
+        ss_a = float(sum(int(cell_counts[i, :].sum()) * (a_means[i] - grand_mean) ** 2 for i in range(levels_a)))
+        ss_b = float(sum(int(cell_counts[:, j].sum()) * (b_means[j] - grand_mean) ** 2 for j in range(levels_b)))
+        ss_cells = float(sum(
+            cell_counts[i, j] * (cell_means[i, j] - grand_mean) ** 2
+            for i in range(levels_a) for j in range(levels_b)
+        ))
         ss_ab = ss_cells - ss_a - ss_b
 
-        # Degrees of freedom
-        df_a = levels_a - 1
-        df_b = levels_b - 1
+        df_a, df_b = levels_a - 1, levels_b - 1
         df_ab = df_a * df_b
         df_error = n_total - levels_a * levels_b
         df_total = n_total - 1
-
-        ms_a = ss_a / df_a
-        ms_b = ss_b / df_b
+        ms_a, ms_b = ss_a / df_a, ss_b / df_b
         ms_ab = ss_ab / df_ab if df_ab > 0 else 0.0
 
         replicated = df_error > 0
@@ -118,7 +98,6 @@ def analyze():
             p_b = float(1 - stats.f.cdf(f_b, df_b, df_error)) if not np.isnan(f_b) else float("nan")
             p_ab = float(1 - stats.f.cdf(f_ab, df_ab, df_error)) if not np.isnan(f_ab) else float("nan")
         else:
-            # Unreplicated: use interaction as error term for main effects
             ms_error = None
             f_a = ms_a / ms_ab if ms_ab > 0 and df_ab > 0 else float("nan")
             f_b = ms_b / ms_ab if ms_ab > 0 and df_ab > 0 else float("nan")
@@ -128,10 +107,8 @@ def analyze():
             p_ab = float("nan")
 
         def fmt_p(v):
-            if np.isnan(v):
-                return "N/A"
-            if v < 0.001:
-                return "< 0.001"
+            if np.isnan(v): return "N/A"
+            if v < 0.001: return "< 0.001"
             return f"{v:.4f}"
 
         def fmt_f(v):
@@ -140,115 +117,64 @@ def analyze():
         def fmt_ss(v):
             return f"{v:.4f}"
 
-        # Build ANOVA table rows
         anova_table = [
-            {
-                "source": factor_a,
-                "ss": fmt_ss(ss_a),
-                "df": df_a,
-                "ms": fmt_ss(ms_a),
-                "f": fmt_f(f_a),
-                "p": fmt_p(p_a),
-                "sig": (not np.isnan(p_a)) and p_a < 0.05,
-            },
-            {
-                "source": factor_b,
-                "ss": fmt_ss(ss_b),
-                "df": df_b,
-                "ms": fmt_ss(ms_b),
-                "f": fmt_f(f_b),
-                "p": fmt_p(p_b),
-                "sig": (not np.isnan(p_b)) and p_b < 0.05,
-            },
-            {
-                "source": f"{factor_a} × {factor_b}",
-                "ss": fmt_ss(ss_ab),
-                "df": df_ab,
-                "ms": fmt_ss(ms_ab),
-                "f": fmt_f(f_ab),
-                "p": fmt_p(p_ab),
-                "sig": (not np.isnan(p_ab)) and p_ab < 0.05,
-            },
+            {"source": factor_a, "ss": fmt_ss(ss_a), "df": df_a, "ms": fmt_ss(ms_a), "f": fmt_f(f_a), "p": fmt_p(p_a), "sig": (not np.isnan(p_a)) and p_a < 0.05},
+            {"source": factor_b, "ss": fmt_ss(ss_b), "df": df_b, "ms": fmt_ss(ms_b), "f": fmt_f(f_b), "p": fmt_p(p_b), "sig": (not np.isnan(p_b)) and p_b < 0.05},
+            {"source": f"{factor_a} × {factor_b}", "ss": fmt_ss(ss_ab), "df": df_ab, "ms": fmt_ss(ms_ab), "f": fmt_f(f_ab), "p": fmt_p(p_ab), "sig": (not np.isnan(p_ab)) and p_ab < 0.05},
         ]
         if replicated:
-            anova_table.append(
-                {
-                    "source": "Error (Within)",
-                    "ss": fmt_ss(ss_error),
-                    "df": df_error,
-                    "ms": fmt_ss(ms_error),
-                    "f": "",
-                    "p": "",
-                    "sig": False,
-                }
-            )
-        anova_table.append(
-            {
-                "source": "Total",
-                "ss": fmt_ss(ss_total),
-                "df": df_total,
-                "ms": "",
-                "f": "",
-                "p": "",
-                "sig": False,
-            }
-        )
+            anova_table.append({"source": "Error (Within)", "ss": fmt_ss(ss_error), "df": df_error, "ms": fmt_ss(ms_error), "f": "", "p": "", "sig": False})
+        anova_table.append({"source": "Total", "ss": fmt_ss(ss_total), "df": df_total, "ms": "", "f": "", "p": "", "sig": False})
+
+        a_labels = [f"{factor_a} — L{i+1}" for i in range(levels_a)]
+        b_labels = [f"{factor_b} — L{j+1}" for j in range(levels_b)]
 
         # Interaction plot
-        a_labels = [f"{factor_a} — Level {i + 1}" for i in range(levels_a)]
-        b_labels = [f"{factor_b} — Level {j + 1}" for j in range(levels_b)]
-        colors = ["#4f46e5", "#ef4444", "#22c55e", "#f59e0b"]
-
         fig_interaction = go.Figure()
         for j in range(levels_b):
-            fig_interaction.add_trace(
-                go.Scatter(
-                    x=a_labels,
-                    y=cell_means[:, j].tolist(),
-                    mode="lines+markers",
-                    name=b_labels[j],
-                    line=dict(color=colors[j % len(colors)], width=2.5),
-                    marker=dict(size=10),
-                )
-            )
+            fig_interaction.add_trace(go.Scatter(
+                x=a_labels, y=cell_means[:, j].tolist(),
+                mode="lines+markers",
+                name=b_labels[j],
+                line=dict(color=_COLORS[j % len(_COLORS)], width=2.5),
+                marker=dict(size=11, line=dict(color="#ffffff", width=2)),
+            ))
         fig_interaction.update_layout(
-            title=f"Interaction Plot: Mean {response_name} by {factor_a} and {factor_b}",
-            xaxis_title=factor_a,
-            yaxis_title=f"Mean {response_name}",
-            template="plotly_white",
-            height=400,
-            margin=dict(t=60, b=50, l=70, r=20),
-            legend=dict(title=factor_b, x=0.75, y=0.95),
+            template=None, paper_bgcolor="#ffffff", plot_bgcolor="#fafbff",
+            font=_FONT, margin=_MARGIN, height=400,
+            title=dict(text=f"Interaction Plot: Mean {response_name} by {factor_a} & {factor_b}",
+                       font=_TITLE_FONT, x=0, xanchor="left"),
+            xaxis=dict(title=dict(text=factor_a, font=dict(size=12, color="#6b7280")), **_AXIS),
+            yaxis=dict(title=dict(text=f"Mean {response_name}", font=dict(size=12, color="#6b7280")), **_AXIS),
+            legend=dict(title=dict(text=factor_b, font=dict(size=12, color="#374151")), x=0.02, y=0.98, **_LEGEND),
         )
 
-        # Main effects bar chart for Factor A
+        # Main effects bar chart
         fig_main = go.Figure()
-        fig_main.add_trace(
-            go.Bar(
-                x=a_labels,
-                y=a_means.tolist(),
-                name=factor_a,
-                marker_color="#4f46e5",
-                text=[f"{v:.3f}" for v in a_means],
-                textposition="outside",
-            )
-        )
+        fig_main.add_trace(go.Bar(
+            x=a_labels, y=a_means.tolist(),
+            name=factor_a,
+            marker=dict(color=_COLORS[0], line=dict(color="#4338ca", width=1.5)),
+            text=[f"{v:.3f}" for v in a_means],
+            textposition="outside",
+            textfont=dict(size=12, color="#374151"),
+            width=0.45,
+        ))
         fig_main.add_hline(
-            y=grand_mean,
-            line_dash="dash",
-            line_color="gray",
+            y=grand_mean, line_dash="dash", line_color="#6b7280", line_width=1.5,
             annotation_text=f"Grand Mean = {grand_mean:.3f}",
+            annotation_font=dict(size=11, color="#6b7280"),
         )
         fig_main.update_layout(
-            title=f"Main Effect — Mean {response_name} by {factor_a}",
-            xaxis_title=factor_a,
-            yaxis_title=f"Mean {response_name}",
-            template="plotly_white",
-            height=350,
-            margin=dict(t=50, b=50, l=70, r=20),
+            template=None, paper_bgcolor="#ffffff", plot_bgcolor="#fafbff",
+            font=_FONT, margin=_MARGIN, height=350,
+            title=dict(text=f"Main Effect — Mean {response_name} by {factor_a}",
+                       font=_TITLE_FONT, x=0, xanchor="left"),
+            xaxis=dict(title=dict(text=factor_a, font=dict(size=12, color="#6b7280")), **_AXIS),
+            yaxis=dict(title=dict(text=f"Mean {response_name}", font=dict(size=12, color="#6b7280")), **_AXIS),
+            bargap=0.4, showlegend=False,
         )
 
-        # Interpretation
         sig_a = (not np.isnan(p_a)) and p_a < 0.05
         sig_b = (not np.isnan(p_b)) and p_b < 0.05
         sig_ab = (not np.isnan(p_ab)) and p_ab < 0.05
@@ -256,66 +182,36 @@ def analyze():
         parts = []
         if sig_a:
             best_a_i = int(np.argmax(a_means))
-            parts.append(
-                f"<strong>{factor_a}</strong> has a significant main effect (p = {fmt_p(p_a)}). "
-                f"The highest mean {response_name} occurs at <strong>{a_labels[best_a_i]}</strong> "
-                f"({a_means[best_a_i]:.3f})."
-            )
+            parts.append(f"<strong>{factor_a}</strong> has a significant main effect (p = {fmt_p(p_a)}). The highest mean {response_name} is at <strong>{a_labels[best_a_i]}</strong> ({a_means[best_a_i]:.3f}).")
         else:
-            parts.append(
-                f"<strong>{factor_a}</strong> does not have a significant main effect (p = {fmt_p(p_a)})."
-            )
+            parts.append(f"<strong>{factor_a}</strong> does not have a significant main effect (p = {fmt_p(p_a)}).")
 
         if sig_b:
             best_b_j = int(np.argmax(b_means))
-            parts.append(
-                f"<strong>{factor_b}</strong> has a significant main effect (p = {fmt_p(p_b)}). "
-                f"The highest mean {response_name} occurs at <strong>{b_labels[best_b_j]}</strong> "
-                f"({b_means[best_b_j]:.3f})."
-            )
+            parts.append(f"<strong>{factor_b}</strong> has a significant main effect (p = {fmt_p(p_b)}). The highest mean {response_name} is at <strong>{b_labels[best_b_j]}</strong> ({b_means[best_b_j]:.3f}).")
         else:
-            parts.append(
-                f"<strong>{factor_b}</strong> does not have a significant main effect (p = {fmt_p(p_b)})."
-            )
+            parts.append(f"<strong>{factor_b}</strong> does not have a significant main effect (p = {fmt_p(p_b)}).")
 
         if sig_ab:
-            parts.append(
-                f"The <strong>interaction between {factor_a} and {factor_b}</strong> is significant "
-                f"(p = {fmt_p(p_ab)}). This means the effect of {factor_a} on {response_name} depends "
-                f"on which level of {factor_b} is applied — the main effects cannot be interpreted in "
-                f"isolation. Look for non-parallel (crossing or diverging) lines in the interaction plot."
-            )
+            parts.append(f"The <strong>interaction between {factor_a} and {factor_b}</strong> is significant (p = {fmt_p(p_ab)}). This means the effect of {factor_a} on {response_name} depends on which level of {factor_b} is used — interpret the interaction plot, not the main effects in isolation. Non-parallel lines in the plot confirm this interaction visually.")
         else:
-            parts.append(
-                f"The <strong>interaction between {factor_a} and {factor_b}</strong> is not significant "
-                f"(p = {fmt_p(p_ab)}), meaning the two factors act independently on {response_name}. "
-                f"Main effects can be interpreted directly."
-            )
+            parts.append(f"The <strong>interaction between {factor_a} and {factor_b}</strong> is not significant (p = {fmt_p(p_ab)}), meaning the factors act independently on {response_name}. Main effects can be interpreted directly.")
 
         best_idx = np.unravel_index(np.argmax(cell_means), cell_means.shape)
-        parts.append(
-            f"The highest observed combination is <strong>{a_labels[best_idx[0]]} + "
-            f"{b_labels[best_idx[1]]}</strong> with a mean {response_name} of "
-            f"<strong>{cell_means[best_idx]:.3f}</strong>."
-        )
+        parts.append(f"The optimal observed combination is <strong>{a_labels[best_idx[0]]} + {b_labels[best_idx[1]]}</strong> with mean {response_name} = <strong>{cell_means[best_idx]:.3f}</strong>.")
 
         if not replicated:
-            parts.append(
-                "<em>Note: With one observation per cell, there is no within-cell error. "
-                "Main effects are tested against the interaction term as the error.</em>"
-            )
+            parts.append("<em>Note: With one observation per cell there is no within-cell error df — main effects are tested against the interaction term as the error.</em>")
 
-        return jsonify(
-            {
-                "anova_table": anova_table,
-                "cell_means": cell_means.tolist(),
-                "a_means": a_means.tolist(),
-                "b_means": b_means.tolist(),
-                "chart_interaction": json.dumps(fig_interaction, cls=plotly.utils.PlotlyJSONEncoder),
-                "chart_main": json.dumps(fig_main, cls=plotly.utils.PlotlyJSONEncoder),
-                "interpretation": " ".join(parts),
-            }
-        )
+        return jsonify({
+            "anova_table": anova_table,
+            "cell_means": cell_means.tolist(),
+            "a_means": a_means.tolist(),
+            "b_means": b_means.tolist(),
+            "chart_interaction": json.dumps(fig_interaction, cls=plotly.utils.PlotlyJSONEncoder),
+            "chart_main": json.dumps(fig_main, cls=plotly.utils.PlotlyJSONEncoder),
+            "interpretation": " ".join(parts),
+        })
     except Exception as e:
         import traceback
         return jsonify({"error": str(e), "trace": traceback.format_exc()}), 400

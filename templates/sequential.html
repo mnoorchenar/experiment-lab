@@ -3,34 +3,34 @@
 
 {% block content %}
 <div class="page-header">
-  <h1>📈 Sequential Testing &amp; the Peeking Problem</h1>
+  <h1>Sequential Testing &amp; the Peeking Problem</h1>
   <p class="page-desc">
     <strong>When would you use this?</strong> Every time you check an ongoing A/B test before it is
-    finished, you risk seeing a spurious "significant" result just by chance. This is called the
-    <em>peeking problem</em>. Sequential testing methods — like O'Brien-Fleming — let you check results
-    early while keeping the false positive rate under control. Use this simulation to see exactly why
-    peeking is dangerous and how sequential testing fixes it.
+    finished, you risk seeing a spurious "significant" result by chance — the <em>peeking problem</em>.
+    Sequential testing methods (like O'Brien-Fleming) let you monitor experiments early while controlling
+    the false positive rate. This simulation shows exactly why peeking is dangerous and how sequential
+    testing corrects it.
   </p>
 </div>
 
 <div id="error-box" class="error-box" style="display:none;"></div>
 
 <div class="card">
-  <h2 class="card-title">Simulation Parameters</h2>
+  <div class="card-title">Simulation Parameters</div>
 
   <div class="three-col-inputs">
     <div class="form-group">
       <label for="true_effect">True underlying effect size</label>
-      <div class="input-hint">Set to 0 to simulate null hypothesis (no real effect)</div>
+      <div class="input-hint">Set to 0 to simulate a null experiment (no real difference)</div>
       <input type="number" id="true_effect" value="0.0" step="0.1" min="-2" max="2" />
     </div>
     <div class="form-group">
       <label for="obs_per_step">New observations per look</label>
-      <div class="input-hint">Observations added at each interim check</div>
+      <div class="input-hint">Observations collected at each interim check</div>
       <input type="number" id="obs_per_step" value="50" min="10" max="500" />
     </div>
     <div class="form-group">
-      <label for="total_steps">Total number of looks</label>
+      <label for="total_steps">Total number of interim looks</label>
       <div class="input-hint">How many times you check during the experiment</div>
       <input type="number" id="total_steps" value="20" min="5" max="50" />
     </div>
@@ -43,7 +43,7 @@
     </div>
     <div class="form-group">
       <label for="num_sims">Number of simulation runs</label>
-      <div class="input-hint">More runs = more reliable false positive rate estimate (max 50)</div>
+      <div class="input-hint">More runs = more stable false positive rate estimate (max 50)</div>
       <input type="number" id="num_sims" value="30" min="5" max="50" />
     </div>
   </div>
@@ -51,7 +51,7 @@
   <button class="btn-primary" id="sim-btn" onclick="simulate()">Run Simulation</button>
 </div>
 
-<!-- Results summary -->
+<!-- Results -->
 <div id="results-section" style="display:none;">
 
   <div class="stats-row">
@@ -66,30 +66,31 @@
   </div>
 
   <div class="card chart-card">
-    <h2 class="card-title">Naive Repeated Testing — Running p-values</h2>
+    <div class="card-title">Naive Repeated Testing — Running p-values Across Simulations</div>
     <p class="chart-desc">
-      Each line is one simulation run. <span style="color:#ef4444;font-weight:600;">Red lines</span>
-      crossed α at least once. Notice how many cross the threshold even with no real effect.
+      Each line is one simulated experiment run.
+      <strong style="color:#f43f5e;">Red lines</strong> crossed α at least once during the run.
+      Notice how many trigger a "significant" result even when no true effect exists.
     </p>
-    <div id="chart-naive"></div>
+    <div id="chart-naive" class="chart-placeholder"></div>
   </div>
 
   <div class="card chart-card">
-    <h2 class="card-title">Sequential Testing with O'Brien-Fleming Boundary</h2>
+    <div class="card-title">Sequential Testing with O'Brien-Fleming Boundary</div>
     <p class="chart-desc">
-      The green dashed line is the OBF boundary — it starts very conservative (demanding a tiny p-value
-      early on) and relaxes as the experiment matures. Only crossings below this boundary count as significant.
+      The green dashed boundary demands a much more extreme result early in the experiment and relaxes
+      as more data accumulates — enabling valid early stopping without inflating the type I error rate.
     </p>
-    <div id="chart-seq"></div>
+    <div id="chart-seq" class="chart-placeholder"></div>
   </div>
 
   <div class="card chart-card">
-    <h2 class="card-title">False Positive Rate Comparison</h2>
-    <div id="chart-compare"></div>
+    <div class="card-title">False Positive Rate — Naive vs Sequential</div>
+    <div id="chart-compare" class="chart-placeholder-md"></div>
   </div>
 
   <div class="card">
-    <h2 class="card-title">Interpretation</h2>
+    <div class="card-title">Interpretation</div>
     <div class="interpretation" id="interp-text"></div>
   </div>
 
@@ -100,12 +101,13 @@
 <script>
 async function simulate() {
   hideError();
+  showSpinner();
   const btn = document.getElementById('sim-btn');
   btn.textContent = 'Simulating…';
   btn.disabled = true;
 
   const payload = {
-    true_effect: parseFloat(document.getElementById('true_effect').value),
+    true_effect:  parseFloat(document.getElementById('true_effect').value),
     obs_per_step: parseInt(document.getElementById('obs_per_step').value),
     total_steps:  parseInt(document.getElementById('total_steps').value),
     alpha:        parseFloat(document.getElementById('alpha_seq').value),
@@ -122,7 +124,7 @@ async function simulate() {
     if (r.error) { showError(r.error); return; }
 
     document.getElementById('naive-fp').textContent = r.naive_fp_rate + '%';
-    document.getElementById('seq-fp').textContent   = r.seq_fp_rate + '%';
+    document.getElementById('seq-fp').textContent   = r.seq_fp_rate   + '%';
     document.getElementById('interp-text').innerHTML = r.interpretation;
     document.getElementById('results-section').style.display = 'block';
 
@@ -132,6 +134,7 @@ async function simulate() {
   } catch(e) {
     showError(e.message);
   } finally {
+    hideSpinner();
     btn.textContent = 'Run Simulation';
     btn.disabled = false;
   }

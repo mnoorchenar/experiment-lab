@@ -3,11 +3,12 @@
 
 {% block content %}
 <div class="page-header">
-  <h1>📐 Sample Size &amp; Power Calculator</h1>
+  <h1>Sample Size &amp; Power Calculator</h1>
   <p class="page-desc">
     <strong>When would you use this?</strong> Before you launch any experiment — A/B test, clinical trial,
-    quality check — you need to know how many observations to collect. Too few and you will miss real effects;
-    too many and you waste time and resources. This tool answers: <em>"How many users do I need?"</em>
+    or quality check — you need to know how many observations to collect. Too few and you will miss real
+    effects; too many and you waste time and resources. This tool answers:
+    <em>"How many users do I need?"</em>
   </p>
 </div>
 
@@ -15,9 +16,9 @@
 
 <div class="two-col">
 
-  <!-- Input card -->
+  <!-- Inputs -->
   <div class="card">
-    <h2 class="card-title">Inputs</h2>
+    <div class="card-title">Experiment Parameters</div>
 
     <div class="form-group">
       <label for="baseline">Baseline rate (current conversion rate)</label>
@@ -27,59 +28,55 @@
 
     <div class="form-group">
       <label for="mde">Minimum detectable effect (absolute)</label>
-      <div class="input-hint">e.g. 0.02 means you want to detect a 2% lift</div>
+      <div class="input-hint">e.g. 0.02 to detect a +2% lift</div>
       <input type="number" id="mde" value="0.02" step="0.005" min="0.001" />
     </div>
 
     <div class="form-group">
       <label for="alpha">Significance level (α)</label>
-      <div class="input-hint">Probability of a false positive (typically 0.05)</div>
+      <div class="input-hint">Probability of a false positive — typically 0.05</div>
       <input type="number" id="alpha" value="0.05" step="0.01" min="0.01" max="0.20" />
     </div>
 
     <div class="form-group">
       <label for="power">Desired power (1 − β)</label>
-      <div class="input-hint">Probability of detecting a real effect (typically 0.80)</div>
+      <div class="input-hint">Probability of detecting a true effect — typically 0.80</div>
       <input type="number" id="power" value="0.80" step="0.05" min="0.50" max="0.99" />
     </div>
 
     <div class="form-group">
       <label>Test type</label>
       <div class="radio-group">
-        <label class="radio-label">
-          <input type="radio" name="tails" value="2" checked /> Two-tailed
-        </label>
-        <label class="radio-label">
-          <input type="radio" name="tails" value="1" /> One-tailed
-        </label>
+        <label class="radio-label"><input type="radio" name="tails" value="2" checked /> Two-tailed (recommended)</label>
+        <label class="radio-label"><input type="radio" name="tails" value="1" /> One-tailed</label>
       </div>
     </div>
 
     <button class="btn-primary" id="calc-btn" onclick="calculate()">Calculate Sample Size</button>
   </div>
 
-  <!-- Result summary card -->
+  <!-- Result summary -->
   <div class="card" id="result-card" style="display:none;">
-    <h2 class="card-title">Required Sample Size</h2>
+    <div class="card-title">Required Sample Size</div>
     <div class="big-number" id="sample-size-display">—</div>
     <div class="big-number-label">observations per group</div>
     <div class="stat-row">
       <span class="stat-item" id="total-display"></span>
     </div>
+    <hr class="section-divider" />
     <div class="interpretation" id="interpretation-text"></div>
   </div>
 
 </div>
 
-<!-- Charts -->
 <div class="card chart-card" id="chart1-card" style="display:none;">
-  <h2 class="card-title">Power Curve — Effect Size vs Statistical Power</h2>
-  <div id="chart1"></div>
+  <div class="card-title">Power Curve — Effect Size vs Statistical Power</div>
+  <div id="chart1" class="chart-placeholder"></div>
 </div>
 
 <div class="card chart-card" id="chart2-card" style="display:none;">
-  <h2 class="card-title">Sample Size Trade-off — Power vs Required Observations</h2>
-  <div id="chart2"></div>
+  <div class="card-title">Sample Size Trade-off — Power vs Required Observations</div>
+  <div id="chart2" class="chart-placeholder"></div>
 </div>
 {% endblock %}
 
@@ -87,6 +84,7 @@
 <script>
 async function calculate() {
   hideError();
+  showSpinner();
   const btn = document.getElementById('calc-btn');
   btn.textContent = 'Calculating…';
   btn.disabled = true;
@@ -106,13 +104,11 @@ async function calculate() {
       body: JSON.stringify(payload),
     });
     const result = await resp.json();
-
     if (result.error) { showError(result.error); return; }
 
-    document.getElementById('sample-size-display').textContent =
-      result.sample_size.toLocaleString();
+    document.getElementById('sample-size-display').textContent = result.sample_size.toLocaleString();
     document.getElementById('total-display').innerHTML =
-      `Total (both groups): <strong>${(result.sample_size * 2).toLocaleString()}</strong>`;
+      `Total across both groups: <strong>${(result.sample_size * 2).toLocaleString()}</strong>`;
     document.getElementById('interpretation-text').innerHTML = result.interpretation;
 
     document.getElementById('result-card').style.display = 'block';
@@ -124,12 +120,12 @@ async function calculate() {
   } catch(e) {
     showError(e.message);
   } finally {
+    hideSpinner();
     btn.textContent = 'Calculate Sample Size';
     btn.disabled = false;
   }
 }
 
-// Auto-calculate on load with defaults
 window.addEventListener('load', calculate);
 </script>
 {% endblock %}
