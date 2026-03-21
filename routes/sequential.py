@@ -10,9 +10,26 @@ sequential_bp = Blueprint("sequential", __name__)
 
 _FONT = dict(family="Inter, system-ui, sans-serif", size=12, color="#374151")
 _AXIS = dict(gridcolor="#f0f2f8", linecolor="#e5e7eb", tickfont=dict(size=11, color="#6b7280"), zeroline=False)
-_TITLE_FONT = dict(size=14, color="#111827", family="Inter, system-ui, sans-serif")
 _LEGEND = dict(bgcolor="rgba(255,255,255,0.9)", bordercolor="#e5e7eb", borderwidth=1, font=dict(size=11))
-_MARGIN = dict(t=52, b=48, l=60, r=100)
+_MARGIN = dict(t=16, b=40, l=60, r=100)
+_HOVERLABEL = dict(
+    bgcolor="#1e1b4b",
+    bordercolor="#4f46e5",
+    font=dict(family="Inter, system-ui, sans-serif", size=12, color="#e0e7ff"),
+)
+
+
+def _base_layout(**kwargs):
+    return dict(
+        template=None,
+        paper_bgcolor="#ffffff",
+        plot_bgcolor="#fafbff",
+        font=_FONT,
+        margin=_MARGIN,
+        hovermode="x unified",
+        hoverlabel=_HOVERLABEL,
+        **kwargs,
+    )
 
 
 @sequential_bp.route("/sequential")
@@ -68,19 +85,16 @@ def simulate():
         # Legend proxies
         fig_naive.add_trace(go.Scatter(x=[None], y=[None], mode="lines",
                                        line=dict(color="rgba(244,63,94,0.75)", width=2.5),
-                                       name="Crossed α (false positive)"))
+                                       name="Crossed \u03b1 (false positive)"))
         fig_naive.add_trace(go.Scatter(x=[None], y=[None], mode="lines",
                                        line=dict(color="rgba(99,102,241,0.6)", width=2.5),
-                                       name="Did not cross α"))
+                                       name="Did not cross \u03b1"))
         fig_naive.add_hline(y=alpha, line_dash="dash", line_color="#f43f5e", line_width=2,
-                            annotation_text=f"α = {alpha}",
+                            annotation_text=f"\u03b1 = {alpha}",
                             annotation_position="right",
                             annotation_font=dict(size=11, color="#f43f5e"))
         fig_naive.update_layout(
-            template=None, paper_bgcolor="#ffffff", plot_bgcolor="#fafbff",
-            font=_FONT, margin=_MARGIN, height=400,
-            title=dict(text=f"Naive Repeated Testing — Running p-values ({num_sims} simulations)",
-                       font=_TITLE_FONT, x=0, xanchor="left"),
+            **_base_layout(height=400),
             xaxis=dict(title=dict(text="Number of Interim Looks", font=dict(size=12, color="#6b7280")), **_AXIS),
             yaxis=dict(title=dict(text="p-value", font=dict(size=12, color="#6b7280")), range=[0, 1], **_AXIS),
             legend=dict(x=0.01, y=0.98, **_LEGEND),
@@ -95,21 +109,18 @@ def simulate():
                 line=dict(color=color, width=1.2),
                 showlegend=False, hoverinfo="none",
             ))
-        # OBF boundary — make it the hero line
+        # OBF boundary
         fig_seq.add_trace(go.Scatter(
             x=steps, y=obf_boundaries, mode="lines",
-            name="O'Brien-Fleming boundary",
+            name="O\u2019Brien-Fleming boundary",
             line=dict(color="#10b981", width=3, dash="dash"),
         ))
         fig_seq.add_hline(y=alpha, line_dash="dot", line_color="#f43f5e", line_width=1.5,
-                          annotation_text=f"Naive α = {alpha}",
+                          annotation_text=f"Naive \u03b1 = {alpha}",
                           annotation_position="right",
                           annotation_font=dict(size=11, color="#f43f5e"))
         fig_seq.update_layout(
-            template=None, paper_bgcolor="#ffffff", plot_bgcolor="#fafbff",
-            font=_FONT, margin=_MARGIN, height=400,
-            title=dict(text=f"Sequential Testing with O'Brien-Fleming Boundary ({num_sims} simulations)",
-                       font=_TITLE_FONT, x=0, xanchor="left"),
+            **_base_layout(height=400),
             xaxis=dict(title=dict(text="Number of Interim Looks", font=dict(size=12, color="#6b7280")), **_AXIS),
             yaxis=dict(title=dict(text="p-value", font=dict(size=12, color="#6b7280")), range=[0, 1], **_AXIS),
             legend=dict(x=0.01, y=0.98, **_LEGEND),
@@ -118,7 +129,7 @@ def simulate():
         # --- Chart 3: Comparison bar ---
         fig_compare = go.Figure()
         fig_compare.add_trace(go.Bar(
-            x=["Naive Repeated Testing", "Sequential (O'Brien-Fleming)"],
+            x=["Naive Repeated Testing", "Sequential (O\u2019Brien-Fleming)"],
             y=[naive_fp_rate * 100, seq_fp_rate * 100],
             marker=dict(
                 color=["#f43f5e", "#10b981"],
@@ -130,13 +141,11 @@ def simulate():
             width=0.45,
         ))
         fig_compare.add_hline(y=alpha * 100, line_dash="dash", line_color="#6b7280", line_width=1.5,
-                              annotation_text=f"Nominal α = {alpha*100:.0f}%",
+                              annotation_text=f"Nominal \u03b1 = {alpha*100:.0f}%",
                               annotation_font=dict(size=11, color="#6b7280"))
         fig_compare.update_layout(
-            template=None, paper_bgcolor="#ffffff", plot_bgcolor="#fafbff",
-            font=_FONT, margin=dict(t=48, b=48, l=56, r=24), height=350,
-            title=dict(text="False Positive Rate: Naive vs Sequential Testing",
-                       font=_TITLE_FONT, x=0, xanchor="left"),
+            **_base_layout(height=350),
+            margin=dict(t=16, b=48, l=56, r=24),
             yaxis=dict(title=dict(text="False Positive Rate (%)", font=dict(size=12, color="#6b7280")),
                        range=[0, max(naive_fp_rate * 100 + 15, 40)], **_AXIS),
             xaxis=dict(**_AXIS),
@@ -152,12 +161,12 @@ def simulate():
             f"Across <strong>{num_sims} simulated experiments</strong> with {effect_desc}, "
             f"each peeked at <strong>{total_steps} interim points</strong> ({obs_per_step} new observations per look):"
             f"<br><br>"
-            f"<strong>Naive repeated testing</strong> crossed α = {alpha} at least once in "
+            f"<strong>Naive repeated testing</strong> crossed \u03b1 = {alpha} at least once in "
             f"<strong>{naive_fp_rate*100:.1f}%</strong> of simulations. "
         )
         if true_effect == 0:
             interpretation += (
-                f"Since there is no real effect, every one of these crossings is a false positive — ideally "
+                f"Since there is no real effect, every one of these crossings is a false positive \u2014 ideally "
                 f"this rate should be {alpha*100:.0f}%. Peeking inflates it dramatically."
             )
         else:
@@ -165,11 +174,11 @@ def simulate():
 
         interpretation += (
             f"<br><br>"
-            f"<strong>Sequential testing (O'Brien-Fleming)</strong> controlled the false positive rate at "
-            f"<strong>{seq_fp_rate*100:.1f}%</strong> — much closer to the nominal {alpha*100:.0f}%. "
+            f"<strong>Sequential testing (O\u2019Brien-Fleming)</strong> controlled the false positive rate at "
+            f"<strong>{seq_fp_rate*100:.1f}%</strong> \u2014 much closer to the nominal {alpha*100:.0f}%. "
             f"The OBF boundary demands a more extreme result early in the experiment (very low p-value) "
             f"and relaxes as more data accumulates, enabling valid early stopping. "
-            f"The trade-off: you need a slightly more extreme signal to stop early — "
+            f"The trade-off: you need a slightly more extreme signal to stop early \u2014 "
             f"a small price for statistical validity."
         )
 

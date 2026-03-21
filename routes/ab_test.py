@@ -12,9 +12,26 @@ ab_test_bp = Blueprint("ab_test", __name__)
 
 _FONT = dict(family="Inter, system-ui, sans-serif", size=12, color="#374151")
 _AXIS = dict(gridcolor="#f0f2f8", linecolor="#e5e7eb", tickfont=dict(size=11, color="#6b7280"), zeroline=False)
-_TITLE_FONT = dict(size=14, color="#111827", family="Inter, system-ui, sans-serif")
 _LEGEND = dict(bgcolor="rgba(255,255,255,0.9)", bordercolor="#e5e7eb", borderwidth=1, font=dict(size=11))
-_MARGIN = dict(t=48, b=44, l=52, r=28)
+_MARGIN = dict(t=16, b=40, l=52, r=20)
+_HOVERLABEL = dict(
+    bgcolor="#1e1b4b",
+    bordercolor="#4f46e5",
+    font=dict(family="Inter, system-ui, sans-serif", size=12, color="#e0e7ff"),
+)
+
+
+def _base_layout(**kwargs):
+    return dict(
+        template=None,
+        paper_bgcolor="#ffffff",
+        plot_bgcolor="#fafbff",
+        font=_FONT,
+        margin=_MARGIN,
+        hovermode="x unified",
+        hoverlabel=_HOVERLABEL,
+        **kwargs,
+    )
 
 
 @ab_test_bp.route("/ab-test")
@@ -113,7 +130,7 @@ def analyze():
         sig = p_value < alpha
         practical_sig = abs(diff) >= practical_threshold
 
-        # CI chart
+        # CI chart — use hovermode="closest" for horizontal scatter
         fig_ci = go.Figure()
         fig_ci.add_shape(
             type="line", x0=ci_low, x1=ci_high, y0=0, y1=0,
@@ -124,9 +141,8 @@ def analyze():
             mode="markers",
             marker=dict(color="#4f46e5", size=16, symbol="diamond",
                         line=dict(color="#ffffff", width=2.5)),
-            name="Observed difference (B − A)",
+            name="Observed difference (B \u2212 A)",
         ))
-        # Zero line
         fig_ci.add_vline(x=0, line_dash="dash", line_color="#f43f5e", line_width=1.5,
                          annotation_text="Zero (no effect)", annotation_position="top",
                          annotation_font=dict(size=11, color="#f43f5e"))
@@ -136,35 +152,32 @@ def analyze():
                              annotation_font=dict(size=11, color="#f59e0b"))
         fig_ci.update_layout(
             template=None, paper_bgcolor="#ffffff", plot_bgcolor="#fafbff",
-            font=_FONT, margin=dict(t=44, b=44, l=28, r=28),
+            font=_FONT, margin=dict(t=16, b=40, l=28, r=28),
             height=220,
-            title=dict(text=f"{int((1-alpha)*100)}% Confidence Interval for Difference (B − A)",
-                       font=_TITLE_FONT, x=0, xanchor="left"),
+            hovermode="closest",
+            hoverlabel=_HOVERLABEL,
             xaxis=dict(title=dict(text="Difference", font=dict(size=12, color="#6b7280")), **_AXIS),
             yaxis=dict(visible=False),
             showlegend=True,
-            legend=dict(orientation="h", y=-0.25, **_LEGEND),
+            legend=dict(orientation="h", y=-0.3, **_LEGEND),
         )
 
         # Distribution overlap
         fig_dist = go.Figure()
         fig_dist.add_trace(go.Scatter(
             x=x.tolist(), y=y1.tolist(), mode="lines",
-            name="Group A — Control",
+            name="Group A \u2014 Control",
             line=dict(color="#6366f1", width=2),
             fill="tozeroy", fillcolor="rgba(99,102,241,0.14)",
         ))
         fig_dist.add_trace(go.Scatter(
             x=x.tolist(), y=y2.tolist(), mode="lines",
-            name="Group B — Treatment",
+            name="Group B \u2014 Treatment",
             line=dict(color="#f43f5e", width=2),
             fill="tozeroy", fillcolor="rgba(244,63,94,0.12)",
         ))
         fig_dist.update_layout(
-            template=None, paper_bgcolor="#ffffff", plot_bgcolor="#fafbff",
-            font=_FONT, margin=_MARGIN, height=340,
-            title=dict(text="Sampling Distributions of Group Estimates",
-                       font=_TITLE_FONT, x=0, xanchor="left"),
+            **_base_layout(height=340),
             xaxis=dict(title=dict(text=metric_label, font=dict(size=12, color="#6b7280")), **_AXIS),
             yaxis=dict(title=dict(text="Density", font=dict(size=12, color="#6b7280")), **_AXIS),
             legend=dict(x=0.02, y=0.98, **_LEGEND),
@@ -179,8 +192,8 @@ def analyze():
                 f"<strong>{p1:.2%}</strong> (difference: {diff:+.4f}). "
                 f"The {stat_label} is <strong>{z_stat:.3f}</strong> (p = <strong>{p_value:.4f}</strong>). "
                 f"The result is <strong>{stat_sig_text}</strong> at α = {alpha}. "
-                f"Effect size — {effect_label}. "
-                f"The {int((1-alpha)*100)}% CI for B − A is [{ci_low:.4f}, {ci_high:.4f}]. "
+                f"Effect size \u2014 {effect_label}. "
+                f"The {int((1-alpha)*100)}% CI for B \u2212 A is [{ci_low:.4f}, {ci_high:.4f}]. "
                 f"Based on your practical threshold of {practical_threshold:.3f}, "
                 f"the effect is <strong>{prac_sig_text}</strong>."
             )
@@ -190,8 +203,8 @@ def analyze():
                 f"<strong>{mean1:.3f}</strong> (difference: {diff:+.3f}). "
                 f"The {stat_label} is <strong>{z_stat:.3f}</strong> (p = <strong>{p_value:.4f}</strong>). "
                 f"The result is <strong>{stat_sig_text}</strong> at α = {alpha}. "
-                f"Effect size — {effect_label}. "
-                f"The {int((1-alpha)*100)}% CI for B − A is [{ci_low:.3f}, {ci_high:.3f}]. "
+                f"Effect size \u2014 {effect_label}. "
+                f"The {int((1-alpha)*100)}% CI for B \u2212 A is [{ci_low:.3f}, {ci_high:.3f}]. "
                 f"Based on your practical threshold of {practical_threshold}, "
                 f"the effect is <strong>{prac_sig_text}</strong>."
             )
@@ -199,12 +212,12 @@ def analyze():
         if sig and not practical_sig:
             interp += (
                 " <strong>Note:</strong> The result is statistically significant but does not meet your "
-                "practical threshold — the effect is real but may not be worth acting on."
+                "practical threshold \u2014 the effect is real but may not be worth acting on."
             )
         elif not sig and practical_sig:
             interp += (
                 " <strong>Note:</strong> The observed effect exceeds your practical threshold, "
-                "but is not statistically significant — collect more data before concluding."
+                "but is not statistically significant \u2014 collect more data before concluding."
             )
 
         return jsonify({

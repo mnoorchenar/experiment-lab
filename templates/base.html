@@ -12,12 +12,9 @@
 </head>
 <body>
 
-<!-- Loading overlay -->
-<div class="spinner-overlay" id="spinner-overlay">
-  <div class="spinner"></div>
-</div>
+<div class="toast-container" id="toast-container"></div>
 
-<div class="layout">
+<div class="app-shell">
 
   <!-- Sidebar -->
   <nav class="sidebar" id="sidebar">
@@ -102,16 +99,33 @@
     </div>
   </nav>
 
-  <!-- Mobile hamburger -->
-  <button class="hamburger" id="hamburger" aria-label="Toggle navigation">&#9776;</button>
+  <!-- Main column -->
+  <div class="main-col">
 
-  <!-- Main content -->
-  <main class="content">
-    {% block content %}{% endblock %}
-  </main>
+    <!-- Top bar -->
+    <div class="top-bar">
+      <span class="top-bar-title">{% block page_title %}{% endblock %}</span>
+      <div class="top-bar-right">
+        <span class="last-run-label" id="last-run-label" style="display:none;">
+          Updated <span id="last-run-time">just now</span>
+        </span>
+        <span class="kbd-hint"><kbd>Ctrl</kbd><kbd>&#x23CE;</kbd> to run</span>
+        <span class="status-chip ready" id="status-chip">Ready</span>
+        <button class="hamburger" id="hamburger" aria-label="Toggle navigation">&#9776;</button>
+      </div>
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+
+    <!-- Content area -->
+    <div class="content-area">
+      {% block content %}{% endblock %}
+    </div>
+
+  </div>
 
 </div>
 
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script>
   // Sidebar toggle
   const hamburger = document.getElementById('hamburger');
@@ -119,12 +133,33 @@
   hamburger.addEventListener('click', () => sidebar.classList.toggle('open'));
   document.querySelectorAll('.nav-link').forEach(l => l.addEventListener('click', () => sidebar.classList.remove('open')));
 
-  // Loading overlay
-  const spinner = document.getElementById('spinner-overlay');
-  function showSpinner() { spinner.classList.add('active'); }
-  function hideSpinner() { spinner.classList.remove('active'); }
+  // Progress bar + status chip
+  const progressBar = document.getElementById('progress-bar');
+  const statusChip  = document.getElementById('status-chip');
 
-  // Plotly helper — professional config
+  function showSpinner() {
+    progressBar.classList.add('running');
+    statusChip.textContent = 'Computing\u2026';
+    statusChip.className = 'status-chip computing';
+  }
+
+  function hideSpinner() {
+    progressBar.classList.remove('running');
+    statusChip.textContent = 'Ready';
+    statusChip.className = 'status-chip ready';
+    if (typeof markLastRun === 'function') markLastRun();
+  }
+
+  function showError(msg) {
+    progressBar.classList.remove('running');
+    statusChip.textContent = 'Error';
+    statusChip.className = 'status-chip error';
+    if (typeof showToast === 'function') showToast(msg, 'error');
+  }
+
+  function hideError() { /* no-op */ }
+
+  // Plotly helper
   const PLOTLY_CONFIG = {
     responsive: true,
     displaylogo: false,
@@ -135,16 +170,6 @@
   function renderChart(divId, chartJson) {
     const parsed = JSON.parse(chartJson);
     Plotly.newPlot(divId, parsed.data, parsed.layout, PLOTLY_CONFIG);
-  }
-
-  function showError(msg) {
-    const el = document.getElementById('error-box');
-    if (el) { el.textContent = 'Error: ' + msg; el.style.display = 'block'; el.scrollIntoView({ behavior:'smooth', block:'nearest' }); }
-  }
-
-  function hideError() {
-    const el = document.getElementById('error-box');
-    if (el) el.style.display = 'none';
   }
 </script>
 

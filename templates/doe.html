@@ -1,107 +1,144 @@
 {% extends "base.html" %}
 {% block title %}Two-Factor DoE{% endblock %}
+{% block page_title %}Two-Factor DoE{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <h1>Two-Factor Experiment Analyzer (DoE)</h1>
-  <p class="page-desc">
-    <strong>When would you use this?</strong> When testing two decisions simultaneously — e.g., email
-    subject line AND send time, or button color AND page layout. A factorial design is more efficient than
-    two separate A/B tests and uniquely reveals whether the two factors <em>interact</em> with each other
-    (i.e., whether the best subject line depends on the send time).
-  </p>
-</div>
+<div class="split-panel">
 
-<div id="error-box" class="error-box" style="display:none;"></div>
-
-<div class="card">
-  <div class="card-title">Experiment Setup</div>
-
-  <div class="two-col-inputs">
-    <div class="form-group">
-      <label for="factor_a">Factor A name</label>
-      <input type="text" id="factor_a" value="Email Subject Line" />
+  <!-- Left: Parameters -->
+  <div class="panel-left">
+    <div class="panel-header">
+      <span class="panel-header-title">Parameters</span>
+      <div class="panel-header-actions">
+        <button class="icon-btn" id="reset-btn" title="Reset to defaults">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+          </svg>
+        </button>
+      </div>
     </div>
-    <div class="form-group">
-      <label for="factor_b">Factor B name</label>
-      <input type="text" id="factor_b" value="Send Time" />
-    </div>
-  </div>
+    <div class="panel-body">
 
-  <div class="two-col-inputs">
-    <div class="form-group">
-      <label for="levels_a">Number of levels — Factor A</label>
-      <select id="levels_a" onchange="buildGrid()">
-        <option value="2" selected>2 levels</option>
-        <option value="3">3 levels</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label for="levels_b">Number of levels — Factor B</label>
-      <select id="levels_b" onchange="buildGrid()">
-        <option value="2" selected>2 levels</option>
-        <option value="3">3 levels</option>
-      </select>
-    </div>
-  </div>
+      <div class="collapsible-section">
+        <button class="collapsible-trigger" aria-expanded="true" data-target="group-setup">
+          Experiment Setup
+          <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="collapsible-content expanded" id="group-setup">
+          <div class="form-group">
+            <label for="factor_a">Factor A name</label>
+            <input type="text" id="factor_a" value="Email Subject Line" />
+          </div>
+          <div class="form-group">
+            <label for="factor_b">Factor B name</label>
+            <input type="text" id="factor_b" value="Send Time" />
+          </div>
+          <div class="form-group">
+            <label for="levels_a">Levels — Factor A</label>
+            <select id="levels_a" onchange="buildGrid()">
+              <option value="2" selected>2 levels</option>
+              <option value="3">3 levels</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="levels_b">Levels — Factor B</label>
+            <select id="levels_b" onchange="buildGrid()">
+              <option value="2" selected>2 levels</option>
+              <option value="3">3 levels</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="response_name">Response variable</label>
+            <input type="text" id="response_name" value="Click Rate (%)" />
+          </div>
+        </div>
+      </div>
 
-  <div class="form-group">
-    <label for="response_name">Response variable name</label>
-    <input type="text" id="response_name" value="Click Rate (%)" />
-  </div>
+      <div class="collapsible-section">
+        <button class="collapsible-trigger" aria-expanded="true" data-target="group-grid">
+          Response Grid
+          <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="collapsible-content expanded" id="group-grid">
+          <div class="input-hint" style="margin-bottom:0.5rem;">
+            Enter observed values (or comma-separated replicates) for each factor-level combination.
+            Rows = Factor A levels, Columns = Factor B levels.
+          </div>
+          <div id="grid-container" style="overflow-x:auto;"></div>
+        </div>
+      </div>
 
-  <div class="form-group">
-    <label>Response grid</label>
-    <div class="input-hint">
-      Enter the observed value (or comma-separated list of replicate observations) for each
-      factor-level combination. Rows = Factor A levels, Columns = Factor B levels.
-    </div>
-    <div id="grid-container" style="overflow-x:auto;"></div>
-  </div>
+      <button class="btn-primary" id="analyze-btn" onclick="runModule()">
+        <span class="btn-spinner"></span>
+        Run Factorial Analysis
+      </button>
 
-  <button class="btn-primary" id="analyze-btn" onclick="analyze()">Run Factorial Analysis</button>
-</div>
-
-<!-- Results -->
-<div id="results-section" style="display:none;">
-
-  <div class="card">
-    <div class="card-title">ANOVA Table</div>
-    <div class="table-wrapper">
-      <table class="anova-table" id="anova-table">
-        <thead>
-          <tr>
-            <th>Source of Variation</th>
-            <th>Sum of Squares</th>
-            <th>df</th>
-            <th>Mean Square</th>
-            <th>F-statistic</th>
-            <th>p-value</th>
-            <th>Significant?</th>
-          </tr>
-        </thead>
-        <tbody id="anova-body"></tbody>
-      </table>
     </div>
   </div>
 
-  <div class="card chart-card">
-    <div class="card-title">Interaction Plot</div>
-    <div class="chart-desc">
-      Parallel lines = no interaction (factors act independently).
-      Crossing or diverging lines = significant interaction (the effect of Factor A depends on Factor B).
+  <!-- Right: Results -->
+  <div class="panel-right">
+
+    <div id="empty-state" class="empty-state">
+      <div class="empty-state-icon">🔬</div>
+      <div class="empty-state-text">Configure your factorial experiment and results will appear here automatically.</div>
     </div>
-    <div id="chart-interaction" class="chart-placeholder"></div>
-  </div>
 
-  <div class="card chart-card">
-    <div class="card-title">Main Effects — Factor A</div>
-    <div id="chart-main" class="chart-placeholder-md"></div>
-  </div>
+    <div id="results-section" style="display:none;">
 
-  <div class="card">
-    <div class="card-title">Interpretation</div>
-    <div class="interpretation" id="interp-text"></div>
+      <div class="chart-card" style="margin-bottom:1rem;">
+        <div class="chart-header">
+          <span class="chart-header-title">ANOVA Table</span>
+        </div>
+        <div class="chart-body" style="padding:0.75rem 1rem;">
+          <div class="table-wrapper">
+            <table class="anova-table" id="anova-table">
+              <thead>
+                <tr>
+                  <th>Source</th>
+                  <th>SS</th>
+                  <th>df</th>
+                  <th>MS</th>
+                  <th>F</th>
+                  <th>p-value</th>
+                  <th>Sig?</th>
+                </tr>
+              </thead>
+              <tbody id="anova-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <span class="chart-header-title">Interaction Plot</span>
+        </div>
+        <div class="chart-desc">
+          Parallel lines = no interaction (factors act independently).
+          Crossing or diverging lines = significant interaction.
+        </div>
+        <div class="chart-body">
+          <div id="chart-interaction" class="chart-placeholder"></div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <span class="chart-header-title">Main Effects — Factor A</span>
+        </div>
+        <div class="chart-body">
+          <div id="chart-main" class="chart-placeholder-md"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Interpretation</div>
+        <div class="interpretation" id="interp-text"></div>
+      </div>
+
+    </div>
   </div>
 
 </div>
@@ -122,11 +159,11 @@ function buildGrid() {
   const container = document.getElementById('grid-container');
 
   let html = '<table class="input-grid"><thead><tr><th></th>';
-  for (let j = 0; j < lb; j++) html += `<th>${fb} — L${j+1}</th>`;
+  for (let j = 0; j < lb; j++) html += `<th>${fb} \u2014 L${j+1}</th>`;
   html += '</tr></thead><tbody>';
 
   for (let i = 0; i < la; i++) {
-    html += `<tr><td class="row-label">${fa} — L${i+1}</td>`;
+    html += `<tr><td class="row-label">${fa} \u2014 L${i+1}</td>`;
     for (let j = 0; j < lb; j++) {
       const def = (DEFAULT_GRID[i] && DEFAULT_GRID[i][j]) ? DEFAULT_GRID[i][j] : '0';
       html += `<td><input type="text" class="grid-cell" id="cell_${i}_${j}" value="${def}" placeholder="value(s)" /></td>`;
@@ -135,6 +172,11 @@ function buildGrid() {
   }
   html += '</tbody></table>';
   container.innerHTML = html;
+
+  // Re-attach debounced listeners on new grid cells
+  container.querySelectorAll('.grid-cell').forEach(cell => {
+    cell.addEventListener('input', debounce(runModule, 600));
+  });
 }
 
 function getGridData() {
@@ -155,11 +197,11 @@ function getGridData() {
   return grid;
 }
 
-async function analyze() {
+window.runModule = async function analyze() {
   hideError();
   showSpinner();
   const btn = document.getElementById('analyze-btn');
-  btn.textContent = 'Analyzing…';
+  btn.classList.add('loading');
   btn.disabled = true;
 
   const payload = {
@@ -185,6 +227,7 @@ async function analyze() {
     r.anova_table.forEach(row => {
       const tr = document.createElement('tr');
       if (row.source === 'Total') tr.classList.add('total-row');
+      if (row.sig) tr.classList.add('anova-row-sig');
       tr.innerHTML = `
         <td><strong>${row.source}</strong></td>
         <td>${row.ss}</td>
@@ -192,12 +235,13 @@ async function analyze() {
         <td>${row.ms}</td>
         <td>${row.f}</td>
         <td class="${row.sig ? 'sig-yes' : ''}">${row.p}</td>
-        <td>${row.p ? (row.sig ? '<span class="badge badge-pass">Yes ✓</span>' : '<span class="badge badge-fail">No</span>') : ''}</td>
+        <td>${row.p ? (row.sig ? '<span class="badge badge-pass">Yes \u2713</span>' : '<span class="badge badge-fail">No</span>') : ''}</td>
       `;
       tbody.appendChild(tr);
     });
 
     document.getElementById('interp-text').innerHTML = r.interpretation;
+    document.getElementById('empty-state').style.display = 'none';
     document.getElementById('results-section').style.display = 'block';
     renderChart('chart-interaction', r.chart_interaction);
     renderChart('chart-main',        r.chart_main);
@@ -205,14 +249,25 @@ async function analyze() {
     showError(e.message);
   } finally {
     hideSpinner();
-    btn.textContent = 'Run Factorial Analysis';
+    btn.classList.remove('loading');
     btn.disabled = false;
   }
-}
+};
+
+const debouncedRun = debounce(runModule, 400);
+['factor_a', 'factor_b', 'response_name'].forEach(id => {
+  document.getElementById(id).addEventListener('input', debouncedRun);
+});
+
+registerDefaults({
+  factor_a: 'Email Subject Line',
+  factor_b: 'Send Time',
+  response_name: 'Click Rate (%)',
+});
 
 window.addEventListener('load', () => {
   buildGrid();
-  analyze();
+  runModule();
 });
 ['factor_a', 'factor_b'].forEach(id => document.getElementById(id).addEventListener('change', buildGrid));
 </script>

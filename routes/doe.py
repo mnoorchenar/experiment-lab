@@ -10,12 +10,29 @@ doe_bp = Blueprint("doe", __name__)
 
 _FONT = dict(family="Inter, system-ui, sans-serif", size=12, color="#374151")
 _AXIS = dict(gridcolor="#f0f2f8", linecolor="#e5e7eb", tickfont=dict(size=11, color="#6b7280"), zeroline=False)
-_TITLE_FONT = dict(size=14, color="#111827", family="Inter, system-ui, sans-serif")
 _LEGEND = dict(bgcolor="rgba(255,255,255,0.9)", bordercolor="#e5e7eb", borderwidth=1, font=dict(size=11))
-_MARGIN = dict(t=52, b=48, l=64, r=28)
+_MARGIN = dict(t=16, b=40, l=64, r=20)
+_HOVERLABEL = dict(
+    bgcolor="#1e1b4b",
+    bordercolor="#4f46e5",
+    font=dict(family="Inter, system-ui, sans-serif", size=12, color="#e0e7ff"),
+)
 
 # Rich, distinct palette
 _COLORS = ["#6366f1", "#f43f5e", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4"]
+
+
+def _base_layout(**kwargs):
+    return dict(
+        template=None,
+        paper_bgcolor="#ffffff",
+        plot_bgcolor="#fafbff",
+        font=_FONT,
+        margin=_MARGIN,
+        hovermode="x unified",
+        hoverlabel=_HOVERLABEL,
+        **kwargs,
+    )
 
 
 @doe_bp.route("/doe")
@@ -120,14 +137,14 @@ def analyze():
         anova_table = [
             {"source": factor_a, "ss": fmt_ss(ss_a), "df": df_a, "ms": fmt_ss(ms_a), "f": fmt_f(f_a), "p": fmt_p(p_a), "sig": (not np.isnan(p_a)) and p_a < 0.05},
             {"source": factor_b, "ss": fmt_ss(ss_b), "df": df_b, "ms": fmt_ss(ms_b), "f": fmt_f(f_b), "p": fmt_p(p_b), "sig": (not np.isnan(p_b)) and p_b < 0.05},
-            {"source": f"{factor_a} × {factor_b}", "ss": fmt_ss(ss_ab), "df": df_ab, "ms": fmt_ss(ms_ab), "f": fmt_f(f_ab), "p": fmt_p(p_ab), "sig": (not np.isnan(p_ab)) and p_ab < 0.05},
+            {"source": f"{factor_a} \u00d7 {factor_b}", "ss": fmt_ss(ss_ab), "df": df_ab, "ms": fmt_ss(ms_ab), "f": fmt_f(f_ab), "p": fmt_p(p_ab), "sig": (not np.isnan(p_ab)) and p_ab < 0.05},
         ]
         if replicated:
             anova_table.append({"source": "Error (Within)", "ss": fmt_ss(ss_error), "df": df_error, "ms": fmt_ss(ms_error), "f": "", "p": "", "sig": False})
         anova_table.append({"source": "Total", "ss": fmt_ss(ss_total), "df": df_total, "ms": "", "f": "", "p": "", "sig": False})
 
-        a_labels = [f"{factor_a} — L{i+1}" for i in range(levels_a)]
-        b_labels = [f"{factor_b} — L{j+1}" for j in range(levels_b)]
+        a_labels = [f"{factor_a} \u2014 L{i+1}" for i in range(levels_a)]
+        b_labels = [f"{factor_b} \u2014 L{j+1}" for j in range(levels_b)]
 
         # Interaction plot
         fig_interaction = go.Figure()
@@ -140,10 +157,7 @@ def analyze():
                 marker=dict(size=11, line=dict(color="#ffffff", width=2)),
             ))
         fig_interaction.update_layout(
-            template=None, paper_bgcolor="#ffffff", plot_bgcolor="#fafbff",
-            font=_FONT, margin=_MARGIN, height=400,
-            title=dict(text=f"Interaction Plot: Mean {response_name} by {factor_a} & {factor_b}",
-                       font=_TITLE_FONT, x=0, xanchor="left"),
+            **_base_layout(height=400),
             xaxis=dict(title=dict(text=factor_a, font=dict(size=12, color="#6b7280")), **_AXIS),
             yaxis=dict(title=dict(text=f"Mean {response_name}", font=dict(size=12, color="#6b7280")), **_AXIS),
             legend=dict(title=dict(text=factor_b, font=dict(size=12, color="#374151")), x=0.02, y=0.98, **_LEGEND),
@@ -166,10 +180,7 @@ def analyze():
             annotation_font=dict(size=11, color="#6b7280"),
         )
         fig_main.update_layout(
-            template=None, paper_bgcolor="#ffffff", plot_bgcolor="#fafbff",
-            font=_FONT, margin=_MARGIN, height=350,
-            title=dict(text=f"Main Effect — Mean {response_name} by {factor_a}",
-                       font=_TITLE_FONT, x=0, xanchor="left"),
+            **_base_layout(height=350),
             xaxis=dict(title=dict(text=factor_a, font=dict(size=12, color="#6b7280")), **_AXIS),
             yaxis=dict(title=dict(text=f"Mean {response_name}", font=dict(size=12, color="#6b7280")), **_AXIS),
             bargap=0.4, showlegend=False,
@@ -193,7 +204,7 @@ def analyze():
             parts.append(f"<strong>{factor_b}</strong> does not have a significant main effect (p = {fmt_p(p_b)}).")
 
         if sig_ab:
-            parts.append(f"The <strong>interaction between {factor_a} and {factor_b}</strong> is significant (p = {fmt_p(p_ab)}). This means the effect of {factor_a} on {response_name} depends on which level of {factor_b} is used — interpret the interaction plot, not the main effects in isolation. Non-parallel lines in the plot confirm this interaction visually.")
+            parts.append(f"The <strong>interaction between {factor_a} and {factor_b}</strong> is significant (p = {fmt_p(p_ab)}). This means the effect of {factor_a} on {response_name} depends on which level of {factor_b} is used \u2014 interpret the interaction plot, not the main effects in isolation. Non-parallel lines in the plot confirm this interaction visually.")
         else:
             parts.append(f"The <strong>interaction between {factor_a} and {factor_b}</strong> is not significant (p = {fmt_p(p_ab)}), meaning the factors act independently on {response_name}. Main effects can be interpreted directly.")
 
@@ -201,7 +212,7 @@ def analyze():
         parts.append(f"The optimal observed combination is <strong>{a_labels[best_idx[0]]} + {b_labels[best_idx[1]]}</strong> with mean {response_name} = <strong>{cell_means[best_idx]:.3f}</strong>.")
 
         if not replicated:
-            parts.append("<em>Note: With one observation per cell there is no within-cell error df — main effects are tested against the interaction term as the error.</em>")
+            parts.append("<em>Note: With one observation per cell there is no within-cell error df \u2014 main effects are tested against the interaction term as the error.</em>")
 
         return jsonify({
             "anova_table": anova_table,

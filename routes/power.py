@@ -12,9 +12,13 @@ power_bp = Blueprint("power", __name__)
 # Shared Plotly style constants
 _FONT = dict(family="Inter, system-ui, sans-serif", size=12, color="#374151")
 _AXIS = dict(gridcolor="#f0f2f8", linecolor="#e5e7eb", tickfont=dict(size=11, color="#6b7280"), zeroline=False)
-_TITLE_FONT = dict(size=14, color="#111827", family="Inter, system-ui, sans-serif")
 _LEGEND = dict(bgcolor="rgba(255,255,255,0.9)", bordercolor="#e5e7eb", borderwidth=1, font=dict(size=11))
-_MARGIN = dict(t=52, b=48, l=60, r=28)
+_MARGIN = dict(t=16, b=40, l=56, r=20)
+_HOVERLABEL = dict(
+    bgcolor="#1e1b4b",
+    bordercolor="#4f46e5",
+    font=dict(family="Inter, system-ui, sans-serif", size=12, color="#e0e7ff"),
+)
 
 
 def _base_layout(**kwargs):
@@ -24,6 +28,8 @@ def _base_layout(**kwargs):
         plot_bgcolor="#fafbff",
         font=_FONT,
         margin=_MARGIN,
+        hovermode="x unified",
+        hoverlabel=_HOVERLABEL,
         **kwargs,
     )
 
@@ -76,7 +82,6 @@ def calculate_power():
             powers_curve.append(max(0.0, min(1.0, float(pw))))
 
         fig1 = go.Figure()
-        # Filled area under power curve
         fig1.add_trace(go.Scatter(
             x=effect_sizes.tolist(), y=powers_curve,
             mode="lines", name="Statistical Power",
@@ -97,7 +102,6 @@ def calculate_power():
         )
         fig1.update_layout(
             **_base_layout(height=360),
-            title=dict(text="Statistical Power vs Effect Size", font=_TITLE_FONT, x=0, xanchor="left", pad=dict(b=8)),
             xaxis=dict(title=dict(text="Effect Size (absolute difference in proportions)", font=dict(size=12, color="#6b7280")), **_AXIS),
             yaxis=dict(title=dict(text="Statistical Power", font=dict(size=12, color="#6b7280")), range=[0, 1.05], tickformat=".0%", **_AXIS),
             legend=dict(x=0.02, y=0.98, **_LEGEND),
@@ -128,7 +132,6 @@ def calculate_power():
         )
         fig2.update_layout(
             **_base_layout(height=360),
-            title=dict(text="Required Sample Size vs Desired Power", font=_TITLE_FONT, x=0, xanchor="left", pad=dict(b=8)),
             xaxis=dict(title=dict(text="Desired Power (1 − β)", font=dict(size=12, color="#6b7280")), tickformat=".0%", **_AXIS),
             yaxis=dict(title=dict(text="Required Sample Size (per group)", font=dict(size=12, color="#6b7280")), **_AXIS),
         )

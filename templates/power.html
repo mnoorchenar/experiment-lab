@@ -1,92 +1,145 @@
 {% extends "base.html" %}
 {% block title %}Power Calculator{% endblock %}
+{% block page_title %}Power Calculator{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <h1>Sample Size &amp; Power Calculator</h1>
-  <p class="page-desc">
-    <strong>When would you use this?</strong> Before you launch any experiment — A/B test, clinical trial,
-    or quality check — you need to know how many observations to collect. Too few and you will miss real
-    effects; too many and you waste time and resources. This tool answers:
-    <em>"How many users do I need?"</em>
-  </p>
-</div>
+<div class="split-panel">
 
-<div id="error-box" class="error-box" style="display:none;"></div>
-
-<div class="two-col">
-
-  <!-- Inputs -->
-  <div class="card">
-    <div class="card-title">Experiment Parameters</div>
-
-    <div class="form-group">
-      <label for="baseline">Baseline rate (current conversion rate)</label>
-      <div class="input-hint">e.g. 0.10 for 10%</div>
-      <input type="number" id="baseline" value="0.10" step="0.01" min="0.001" max="0.999" />
-    </div>
-
-    <div class="form-group">
-      <label for="mde">Minimum detectable effect (absolute)</label>
-      <div class="input-hint">e.g. 0.02 to detect a +2% lift</div>
-      <input type="number" id="mde" value="0.02" step="0.005" min="0.001" />
-    </div>
-
-    <div class="form-group">
-      <label for="alpha">Significance level (α)</label>
-      <div class="input-hint">Probability of a false positive — typically 0.05</div>
-      <input type="number" id="alpha" value="0.05" step="0.01" min="0.01" max="0.20" />
-    </div>
-
-    <div class="form-group">
-      <label for="power">Desired power (1 − β)</label>
-      <div class="input-hint">Probability of detecting a true effect — typically 0.80</div>
-      <input type="number" id="power" value="0.80" step="0.05" min="0.50" max="0.99" />
-    </div>
-
-    <div class="form-group">
-      <label>Test type</label>
-      <div class="radio-group">
-        <label class="radio-label"><input type="radio" name="tails" value="2" checked /> Two-tailed (recommended)</label>
-        <label class="radio-label"><input type="radio" name="tails" value="1" /> One-tailed</label>
+  <!-- Left: Parameters -->
+  <div class="panel-left">
+    <div class="panel-header">
+      <span class="panel-header-title">Parameters</span>
+      <div class="panel-header-actions">
+        <button class="icon-btn" id="reset-btn" title="Reset to defaults">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+          </svg>
+        </button>
       </div>
     </div>
+    <div class="panel-body">
 
-    <button class="btn-primary" id="calc-btn" onclick="calculate()">Calculate Sample Size</button>
-  </div>
+      <div class="collapsible-section">
+        <button class="collapsible-trigger" aria-expanded="true" data-target="group-rates">
+          Rates
+          <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="collapsible-content expanded" id="group-rates">
+          <div class="form-group">
+            <label for="baseline">Baseline rate (current conversion)</label>
+            <div class="input-hint">e.g. 0.10 for 10%</div>
+            <input type="number" id="baseline" value="0.10" step="0.01" min="0.001" max="0.999" />
+          </div>
+          <div class="form-group">
+            <label for="mde">Minimum detectable effect (absolute)</label>
+            <div class="input-hint">e.g. 0.02 to detect a +2% lift</div>
+            <input type="number" id="mde" value="0.02" step="0.005" min="0.001" />
+          </div>
+        </div>
+      </div>
 
-  <!-- Result summary -->
-  <div class="card" id="result-card" style="display:none;">
-    <div class="card-title">Required Sample Size</div>
-    <div class="big-number" id="sample-size-display">—</div>
-    <div class="big-number-label">observations per group</div>
-    <div class="stat-row">
-      <span class="stat-item" id="total-display"></span>
+      <div class="collapsible-section">
+        <button class="collapsible-trigger" aria-expanded="true" data-target="group-thresholds">
+          Thresholds
+          <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="collapsible-content expanded" id="group-thresholds">
+          <div class="form-group">
+            <label for="alpha">Significance level (α)</label>
+            <div class="input-hint">Probability of a false positive — typically 0.05</div>
+            <input type="number" id="alpha" value="0.05" step="0.01" min="0.01" max="0.20" />
+          </div>
+          <div class="form-group">
+            <label for="power">Desired power (1 − β)</label>
+            <div class="input-hint">Probability of detecting a true effect — typically 0.80</div>
+            <input type="number" id="power" value="0.80" step="0.05" min="0.50" max="0.99" />
+          </div>
+        </div>
+      </div>
+
+      <div class="collapsible-section">
+        <button class="collapsible-trigger" aria-expanded="true" data-target="group-test-type">
+          Test Type
+          <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="collapsible-content expanded" id="group-test-type">
+          <div class="form-group">
+            <div class="radio-group">
+              <label class="radio-label"><input type="radio" name="tails" value="2" checked /> Two-tailed (recommended)</label>
+              <label class="radio-label"><input type="radio" name="tails" value="1" /> One-tailed</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-primary" id="calc-btn" onclick="runModule()">
+        <span class="btn-spinner"></span>
+        Calculate Sample Size
+      </button>
+
     </div>
-    <hr class="section-divider" />
-    <div class="interpretation" id="interpretation-text"></div>
   </div>
 
-</div>
+  <!-- Right: Results -->
+  <div class="panel-right">
 
-<div class="card chart-card" id="chart1-card" style="display:none;">
-  <div class="card-title">Power Curve — Effect Size vs Statistical Power</div>
-  <div id="chart1" class="chart-placeholder"></div>
-</div>
+    <div id="empty-state" class="empty-state">
+      <div class="empty-state-icon">📊</div>
+      <div class="empty-state-text">Adjust parameters and results will appear here automatically.</div>
+    </div>
 
-<div class="card chart-card" id="chart2-card" style="display:none;">
-  <div class="card-title">Sample Size Trade-off — Power vs Required Observations</div>
-  <div id="chart2" class="chart-placeholder"></div>
+    <div id="results-section" style="display:none;">
+
+      <div class="kpi-row">
+        <div class="kpi-tile">
+          <div class="kpi-label">Per Group</div>
+          <div class="kpi-value" id="kpi-per-group">—</div>
+          <div class="kpi-context">observations needed</div>
+        </div>
+        <div class="kpi-tile">
+          <div class="kpi-label">Total</div>
+          <div class="kpi-value" id="kpi-total">—</div>
+          <div class="kpi-context">both groups combined</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:1rem; animation: slide-up 0.28s ease both;">
+        <div class="card-title">Interpretation</div>
+        <div class="interpretation" id="interpretation-text"></div>
+      </div>
+
+      <div class="chart-card" id="chart1-card">
+        <div class="chart-header">
+          <span class="chart-header-title">Power Curve — Effect Size vs Statistical Power</span>
+        </div>
+        <div class="chart-body">
+          <div id="chart1" class="chart-placeholder"></div>
+        </div>
+      </div>
+
+      <div class="chart-card" id="chart2-card">
+        <div class="chart-header">
+          <span class="chart-header-title">Sample Size Trade-off — Power vs Required Observations</span>
+        </div>
+        <div class="chart-body">
+          <div id="chart2" class="chart-placeholder"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-async function calculate() {
+window.runModule = async function calculate() {
   hideError();
   showSpinner();
   const btn = document.getElementById('calc-btn');
-  btn.textContent = 'Calculating…';
+  btn.classList.add('loading');
   btn.disabled = true;
 
   const payload = {
@@ -106,14 +159,12 @@ async function calculate() {
     const result = await resp.json();
     if (result.error) { showError(result.error); return; }
 
-    document.getElementById('sample-size-display').textContent = result.sample_size.toLocaleString();
-    document.getElementById('total-display').innerHTML =
-      `Total across both groups: <strong>${(result.sample_size * 2).toLocaleString()}</strong>`;
+    document.getElementById('kpi-per-group').textContent = result.sample_size.toLocaleString();
+    document.getElementById('kpi-total').textContent = (result.sample_size * 2).toLocaleString();
     document.getElementById('interpretation-text').innerHTML = result.interpretation;
 
-    document.getElementById('result-card').style.display = 'block';
-    document.getElementById('chart1-card').style.display = 'block';
-    document.getElementById('chart2-card').style.display = 'block';
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('results-section').style.display = 'block';
 
     renderChart('chart1', result.chart1);
     renderChart('chart2', result.chart2);
@@ -121,11 +172,26 @@ async function calculate() {
     showError(e.message);
   } finally {
     hideSpinner();
-    btn.textContent = 'Calculate Sample Size';
+    btn.classList.remove('loading');
     btn.disabled = false;
   }
-}
+};
 
-window.addEventListener('load', calculate);
+const debouncedRun = debounce(runModule, 400);
+document.querySelectorAll('.panel-left input[type="number"]').forEach(el => {
+  el.addEventListener('input', debouncedRun);
+});
+document.querySelectorAll('input[name="tails"]').forEach(el => {
+  el.addEventListener('change', debouncedRun);
+});
+
+registerDefaults({
+  baseline: '0.10',
+  mde: '0.02',
+  alpha: '0.05',
+  power: '0.80',
+});
+
+window.addEventListener('load', runModule);
 </script>
 {% endblock %}

@@ -1,97 +1,138 @@
 {% extends "base.html" %}
 {% block title %}Sequential Testing{% endblock %}
+{% block page_title %}Sequential Testing{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <h1>Sequential Testing &amp; the Peeking Problem</h1>
-  <p class="page-desc">
-    <strong>When would you use this?</strong> Every time you check an ongoing A/B test before it is
-    finished, you risk seeing a spurious "significant" result by chance — the <em>peeking problem</em>.
-    Sequential testing methods (like O'Brien-Fleming) let you monitor experiments early while controlling
-    the false positive rate. This simulation shows exactly why peeking is dangerous and how sequential
-    testing corrects it.
-  </p>
-</div>
+<div class="split-panel">
 
-<div id="error-box" class="error-box" style="display:none;"></div>
-
-<div class="card">
-  <div class="card-title">Simulation Parameters</div>
-
-  <div class="three-col-inputs">
-    <div class="form-group">
-      <label for="true_effect">True underlying effect size</label>
-      <div class="input-hint">Set to 0 to simulate a null experiment (no real difference)</div>
-      <input type="number" id="true_effect" value="0.0" step="0.1" min="-2" max="2" />
+  <!-- Left: Parameters -->
+  <div class="panel-left">
+    <div class="panel-header">
+      <span class="panel-header-title">Parameters</span>
+      <div class="panel-header-actions">
+        <button class="icon-btn" id="reset-btn" title="Reset to defaults">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+          </svg>
+        </button>
+      </div>
     </div>
-    <div class="form-group">
-      <label for="obs_per_step">New observations per look</label>
-      <div class="input-hint">Observations collected at each interim check</div>
-      <input type="number" id="obs_per_step" value="50" min="10" max="500" />
-    </div>
-    <div class="form-group">
-      <label for="total_steps">Total number of interim looks</label>
-      <div class="input-hint">How many times you check during the experiment</div>
-      <input type="number" id="total_steps" value="20" min="5" max="50" />
+    <div class="panel-body">
+
+      <div class="collapsible-section">
+        <button class="collapsible-trigger" aria-expanded="true" data-target="group-effect">
+          Experiment Parameters
+          <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="collapsible-content expanded" id="group-effect">
+          <div class="form-group">
+            <label for="true_effect">True underlying effect size</label>
+            <div class="input-hint">Set to 0 to simulate a null experiment (no real difference)</div>
+            <input type="number" id="true_effect" value="0.0" step="0.1" min="-2" max="2" />
+          </div>
+          <div class="form-group">
+            <label for="obs_per_step">New observations per look</label>
+            <div class="input-hint">Observations collected at each interim check</div>
+            <input type="number" id="obs_per_step" value="50" min="10" max="500" />
+          </div>
+          <div class="form-group">
+            <label for="total_steps">Total number of interim looks</label>
+            <div class="input-hint">How many times you check during the experiment</div>
+            <input type="number" id="total_steps" value="20" min="5" max="50" />
+          </div>
+          <div class="form-group">
+            <label for="alpha_seq">Significance level (α)</label>
+            <input type="number" id="alpha_seq" value="0.05" step="0.01" min="0.01" max="0.20" />
+          </div>
+        </div>
+      </div>
+
+      <div class="collapsible-section">
+        <button class="collapsible-trigger" aria-expanded="true" data-target="group-sims">
+          Simulation
+          <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="collapsible-content expanded" id="group-sims">
+          <div class="form-group">
+            <label for="num_sims">Number of simulation runs</label>
+            <div class="input-hint">More runs = more stable estimates (max 50). Changes here require clicking Run.</div>
+            <input type="number" id="num_sims" value="30" min="5" max="50" />
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-primary" id="sim-btn" onclick="runModule()">
+        <span class="btn-spinner"></span>
+        Run Simulation
+      </button>
+
     </div>
   </div>
 
-  <div class="two-col-inputs">
-    <div class="form-group">
-      <label for="alpha_seq">Significance level (α)</label>
-      <input type="number" id="alpha_seq" value="0.05" step="0.01" min="0.01" max="0.20" />
+  <!-- Right: Results -->
+  <div class="panel-right">
+
+    <div id="empty-state" class="empty-state">
+      <div class="empty-state-icon">📈</div>
+      <div class="empty-state-text">Configure simulation parameters and click Run to see results.</div>
     </div>
-    <div class="form-group">
-      <label for="num_sims">Number of simulation runs</label>
-      <div class="input-hint">More runs = more stable false positive rate estimate (max 50)</div>
-      <input type="number" id="num_sims" value="30" min="5" max="50" />
+
+    <div id="results-section" style="display:none;">
+
+      <div class="kpi-row">
+        <div class="kpi-tile highlight-bad">
+          <div class="kpi-label">Naive Repeated Testing<br/>False Positive Rate</div>
+          <div class="kpi-value" id="naive-fp">—</div>
+        </div>
+        <div class="kpi-tile highlight-good">
+          <div class="kpi-label">Sequential Testing (OBF)<br/>False Positive Rate</div>
+          <div class="kpi-value" id="seq-fp">—</div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <span class="chart-header-title">Naive Repeated Testing — Running p-values Across Simulations</span>
+        </div>
+        <div class="chart-desc">
+          Each line is one simulated experiment run.
+          <strong style="color:#f43f5e;">Red lines</strong> crossed α at least once during the run —
+          a false positive when no true effect exists.
+        </div>
+        <div class="chart-body">
+          <div id="chart-naive" class="chart-placeholder"></div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <span class="chart-header-title">Sequential Testing with O'Brien-Fleming Boundary</span>
+        </div>
+        <div class="chart-desc">
+          The green dashed boundary demands a much more extreme result early in the experiment and relaxes
+          as more data accumulates — enabling valid early stopping without inflating the type I error rate.
+        </div>
+        <div class="chart-body">
+          <div id="chart-seq" class="chart-placeholder"></div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <span class="chart-header-title">False Positive Rate — Naive vs Sequential</span>
+        </div>
+        <div class="chart-body">
+          <div id="chart-compare" class="chart-placeholder-md"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Interpretation</div>
+        <div class="interpretation" id="interp-text"></div>
+      </div>
+
     </div>
-  </div>
-
-  <button class="btn-primary" id="sim-btn" onclick="simulate()">Run Simulation</button>
-</div>
-
-<!-- Results -->
-<div id="results-section" style="display:none;">
-
-  <div class="stats-row">
-    <div class="stat-card highlight-bad">
-      <div class="stat-label">Naive Repeated Testing<br/>False Positive Rate</div>
-      <div class="stat-val" id="naive-fp"></div>
-    </div>
-    <div class="stat-card highlight-good">
-      <div class="stat-label">Sequential Testing (OBF)<br/>False Positive Rate</div>
-      <div class="stat-val" id="seq-fp"></div>
-    </div>
-  </div>
-
-  <div class="card chart-card">
-    <div class="card-title">Naive Repeated Testing — Running p-values Across Simulations</div>
-    <p class="chart-desc">
-      Each line is one simulated experiment run.
-      <strong style="color:#f43f5e;">Red lines</strong> crossed α at least once during the run.
-      Notice how many trigger a "significant" result even when no true effect exists.
-    </p>
-    <div id="chart-naive" class="chart-placeholder"></div>
-  </div>
-
-  <div class="card chart-card">
-    <div class="card-title">Sequential Testing with O'Brien-Fleming Boundary</div>
-    <p class="chart-desc">
-      The green dashed boundary demands a much more extreme result early in the experiment and relaxes
-      as more data accumulates — enabling valid early stopping without inflating the type I error rate.
-    </p>
-    <div id="chart-seq" class="chart-placeholder"></div>
-  </div>
-
-  <div class="card chart-card">
-    <div class="card-title">False Positive Rate — Naive vs Sequential</div>
-    <div id="chart-compare" class="chart-placeholder-md"></div>
-  </div>
-
-  <div class="card">
-    <div class="card-title">Interpretation</div>
-    <div class="interpretation" id="interp-text"></div>
   </div>
 
 </div>
@@ -99,11 +140,15 @@
 
 {% block scripts %}
 <script>
-async function simulate() {
+let simInFlight = false;
+
+window.runModule = async function simulate() {
+  if (simInFlight) return;
+  simInFlight = true;
   hideError();
   showSpinner();
   const btn = document.getElementById('sim-btn');
-  btn.textContent = 'Simulating…';
+  btn.classList.add('loading');
   btn.disabled = true;
 
   const payload = {
@@ -126,6 +171,7 @@ async function simulate() {
     document.getElementById('naive-fp').textContent = r.naive_fp_rate + '%';
     document.getElementById('seq-fp').textContent   = r.seq_fp_rate   + '%';
     document.getElementById('interp-text').innerHTML = r.interpretation;
+    document.getElementById('empty-state').style.display = 'none';
     document.getElementById('results-section').style.display = 'block';
 
     renderChart('chart-naive',   r.chart_naive);
@@ -135,11 +181,25 @@ async function simulate() {
     showError(e.message);
   } finally {
     hideSpinner();
-    btn.textContent = 'Run Simulation';
+    btn.classList.remove('loading');
     btn.disabled = false;
+    simInFlight = false;
   }
-}
+};
 
-window.addEventListener('load', simulate);
+// Selective debounce: num_sims only via button click
+['true_effect', 'obs_per_step', 'total_steps', 'alpha_seq'].forEach(id => {
+  document.getElementById(id).addEventListener('input', debounce(runModule, 800));
+});
+
+registerDefaults({
+  true_effect: '0.0',
+  obs_per_step: '50',
+  total_steps: '20',
+  alpha_seq: '0.05',
+  num_sims: '30',
+});
+
+window.addEventListener('load', runModule);
 </script>
 {% endblock %}
