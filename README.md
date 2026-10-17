@@ -15,8 +15,12 @@ sdk: docker
 [![Python](https://img.shields.io/badge/Python-3.10+-3b82f6?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-3.x-4f46e5?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-3b82f6?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![HuggingFace](https://img.shields.io/badge/HuggingFace-Spaces-ffcc00?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/mnoorchenar/spaces)
 [![Status](https://img.shields.io/badge/Status-Active-22c55e?style=for-the-badge)](#)
+
+<br/>
+
+[![Live Demo](https://img.shields.io/badge/%E2%96%B6_Live_Demo-Hugging_Face_Space-ffcc00?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/spaces/mnoorchenar/experiment-lab)
+[![Source Code](https://img.shields.io/badge/Source_Code-GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/mnoorchenar/experiment-lab)
 
 <br/>
 
@@ -39,7 +43,7 @@ sdk: docker
 - [Project Structure](#-project-structure)
 - [Author](#-author)
 - [Contributing](#-contributing)
-- [Disclaimer](#disclaimer)
+- [Disclaimer](#️-disclaimer)
 - [License](#-license)
 
 ---
@@ -62,10 +66,6 @@ sdk: docker
   <tr>
     <td>📈 <b>Sequential Testing Demo</b></td>
     <td>Simulates the peeking problem and shows how O'Brien-Fleming boundaries fix false positive inflation</td>
-  </tr>
-  <tr>
-    <td>🔒 <b>Secure by Design</b></td>
-    <td>Role-based access, audit logs, encrypted data pipelines</td>
   </tr>
   <tr>
     <td>🐳 <b>Containerized Deployment</b></td>
@@ -135,9 +135,9 @@ Open your browser at `http://localhost:7860` 🎉
 # Build and run with Docker Compose
 docker compose up --build
 
-# Or pull and run the pre-built image
-docker pull mnoorchenar/experiment-lab
-docker run -p 7860:7860 mnoorchenar/experiment-lab
+docker build -t experiment-lab .
+
+docker run -p 7860:7860 experiment-lab
 ```
 
 ---
@@ -175,29 +175,26 @@ models = {
 ```
 experiment-lab/
 │
-├── 📂 routes/              # Flask blueprints — one per module
+├── 📂 routes/                    # Flask blueprints — one per module
 │   ├── __init__.py
-│   ├── power.py            # Sample size & power calculator
-│   ├── ab_test.py          # A/B test analyzer (proportions & means)
-│   ├── doe.py              # Two-factor ANOVA & interaction analysis
-│   └── sequential.py       # Sequential testing simulation
-│
-├── 📂 templates/           # Jinja2 HTML templates
-│   ├── base.html           # Sidebar layout, shared JS helpers
-│   ├── power.html
+│   ├── ab_test.py
+│   ├── doe.py
+│   ├── power.py
+│   └── sequential.py
+├── 📂 static/                    # CSS, JavaScript & assets
+│   ├── css/
+│   └── js/
+├── 📂 templates/                 # Jinja2 HTML templates
 │   ├── ab_test.html
+│   ├── base.html
 │   ├── doe.html
+│   ├── power.html
 │   └── sequential.html
-│
-├── 📂 static/
-│   └── 📂 css/
-│       └── style.css       # Professional responsive stylesheet
-│
-├── 📄 app.py               # Application entry point
-├── 📄 Dockerfile           # Container definition (port 7860)
-├── 📄 docker-compose.yml   # Multi-service orchestration
-├── 📄 requirements.txt     # Python dependencies
-└── 📄 .env.example         # Environment variable template
+├── 📄 .env.example               # Environment variable template
+├── 📄 Dockerfile                 # Container definition (port 7860)
+├── 📄 app.py                     # Application entry point
+├── 📄 docker-compose.yml         # Multi-service orchestration
+└── 📄 requirements.txt           # Python dependencies
 ```
 
 ---
@@ -222,7 +219,7 @@ experiment-lab/
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/mnoorchenar)&nbsp;
 [![Personal Site](https://img.shields.io/badge/Website-mnoorchenar.github.io-4f46e5?style=for-the-badge&logo=githubpages&logoColor=white)](https://mnoorchenar.github.io/)&nbsp;
-[![HuggingFace](https://img.shields.io/badge/HuggingFace-ffcc00?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/mnoorchenar/spaces)&nbsp;
+[![HuggingFace](https://img.shields.io/badge/HuggingFace-ffcc00?style=for-the-badge&logo=huggingface&logoColor=black)](https://huggingface.co/mnoorchenar)&nbsp;
 [![Google Scholar](https://img.shields.io/badge/Scholar-4285F4?style=for-the-badge&logo=googlescholar&logoColor=white)](https://scholar.google.ca/citations?user=nn_Toq0AAAAJ&hl=en)&nbsp;
 [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/mnoorchenar)
 
@@ -246,15 +243,16 @@ Contributions are welcome! Please follow these steps:
 
 ---
 
-## Disclaimer
+## ⚠️ Disclaimer
 
-<span style="color:red">This project is developed strictly for educational and research purposes and does not constitute professional advice of any kind. All datasets used are either synthetically generated or publicly available — no real user data is stored. This software is provided "as is" without warranty of any kind; use at your own risk.</span>
+> [!WARNING]
+> This project is developed strictly for educational and research purposes and does not constitute professional advice of any kind. All datasets used are either synthetically generated or publicly available — no real user data is stored. This software is provided "as is" without warranty of any kind; use at your own risk.
 
 ---
 
 ## 📜 License
 
-Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
+Distributed under the **MIT License**.
 
 ---
 
@@ -262,9 +260,9 @@ Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more informa
 
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:3b82f6,100:4f46e5&height=120&section=footer&text=Made%20with%20%E2%9D%A4%EF%B8%8F%20by%20Mohammad%20Noorchenarboo&fontColor=ffffff&fontSize=18&fontAlignY=80" width="100%"/>
 
-[![GitHub Stars](https://img.shields.io/github/stars/mnoorchenar/experiment-lab?style=social)](https://github.com/mnoorchenar/experiment-lab)
+[![GitHub Stars](https://img.shields.io/github/stars/mnoorchenar/experiment-lab?style=social)](https://github.com/mnoorchenar/experiment-lab/stargazers)
 [![GitHub Forks](https://img.shields.io/github/forks/mnoorchenar/experiment-lab?style=social)](https://github.com/mnoorchenar/experiment-lab/fork)
 
-<sub>The name "ExperimentLab" is used purely for academic and research purposes. Any similarity to existing company names, products, or trademarks is entirely coincidental and unintentional. This project has no affiliation with any commercial entity.</sub>
+<sub>The name "ExperimentLab" is used purely for academic and research purposes. Any similarity to existing product names or trademarks is entirely coincidental. This project has no affiliation with any commercial entity.</sub>
 
 </div>
